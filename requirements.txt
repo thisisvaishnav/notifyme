@@ -1,5 +1,5 @@
 # Core asynchronous dependencies
-twikit @ git+https://github.com/leslienwu/twikit-patched.git@fix/ondemand-key-byte-indices-2026
+twifork>=2.4.0
 aiohttp==3.14.5
 pyyaml==6.0.3
 python-dotenv==1.2.4

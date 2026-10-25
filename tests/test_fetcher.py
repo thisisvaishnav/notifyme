@@ -1,7 +1,7 @@
-"""Unit tests for fetcher error handling and tweet parsing."""
+"""Unit tests for fetcher error handling, tweet parsing, and session initialization."""
 
 import pytest
-from unittest.mock import MagicMock, AsyncMock
+from unittest.mock import MagicMock, AsyncMock, patch
 from config import XAccountConfig
 from fetcher import (
     TwikitFetcher,
@@ -35,6 +35,10 @@ def test_fetcher_error_mapping():
     with pytest.raises(SessionExpiredException):
         fetcher._handle_twikit_error(errors.Unauthorized("Unauthorized"))
 
+    # LoginRetired or flow broken
+    with pytest.raises(SessionExpiredException):
+        fetcher._handle_twikit_error(Exception("LoginFlow is currently not accessible"))
+
     # Timeout
     with pytest.raises(NetworkException):
         fetcher._handle_twikit_error(errors.RequestTimeout("Timeout"))
@@ -42,6 +46,36 @@ def test_fetcher_error_mapping():
     # Generic
     with pytest.raises(FetcherException):
         fetcher._handle_twikit_error(Exception("Something generic"))
+
+
+@pytest.mark.asyncio
+async def test_fetcher_initialize_with_tokens():
+    cfg = XAccountConfig(
+        auth_token="dummy_auth_token",
+        ct0="dummy_ct0",
+        cookies_path="/tmp/test_notifyme_cookies.json",
+    )
+    fetcher = TwikitFetcher(cfg)
+
+    with patch("twikit.Client") as MockClient:
+        mock_instance = MagicMock()
+        MockClient.return_value = mock_instance
+
+        await fetcher.initialize()
+
+        mock_instance.set_cookies.assert_called_once_with({
+            "auth_token": "dummy_auth_token",
+            "ct0": "dummy_ct0",
+        })
+
+
+@pytest.mark.asyncio
+async def test_fetcher_initialize_missing_everything():
+    cfg = XAccountConfig(username="", password="", auth_token="", ct0="", cookies_path="/tmp/non_existent.json")
+    fetcher = TwikitFetcher(cfg)
+
+    with pytest.raises(SessionExpiredException):
+        await fetcher.initialize()
 
 
 @pytest.mark.asyncio

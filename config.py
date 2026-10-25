@@ -1,16 +1,14 @@
-"""Configuration loader and schema definitions for X Account Monitor."""
+"""Configuration schema and loading for NotifyMe application."""
 
-from __future__ import annotations
 import os
 import yaml
 from dataclasses import dataclass, field
-from pathlib import Path
 from dotenv import load_dotenv
 
 
 @dataclass
 class TelegramConfig:
-    """Telegram bot configuration settings."""
+    """Telegram Bot and Chat destination settings."""
     bot_token: str = ""
     chat_id: str = ""
     alert_chat_id: str = ""
@@ -29,6 +27,8 @@ class XAccountConfig:
     totp_secret: str = ""
     list_id: str = ""
     cookies_path: str = "data/cookies.json"
+    auth_token: str = ""
+    ct0: str = ""
 
 
 @dataclass
@@ -50,7 +50,7 @@ class AccountOverrideConfig:
 
 @dataclass
 class FilterConfig:
-    """Global tweet filtering rules."""
+    """Global and per-account filtering rules."""
     include_replies: bool = False
     include_retweets: bool = False
     include_quotes: bool = False
@@ -61,7 +61,7 @@ class FilterConfig:
 
 @dataclass
 class AlertConfig:
-    """Alert thresholds and cooldown configuration."""
+    """Health alerts and failure thresholds."""
     max_consecutive_failures: int = 5
     inactivity_alert_minutes: int = 10
     alert_cooldown_minutes: int = 30
@@ -69,8 +69,7 @@ class AlertConfig:
 
 @dataclass
 class WebConfig:
-    """Local HTML/CSS desktop interface configuration."""
-    enabled: bool = True
+    """Desktop Web UI server configuration."""
     host: str = "127.0.0.1"
     port: int = 8080
 
@@ -78,12 +77,12 @@ class WebConfig:
 @dataclass
 class StorageConfig:
     """SQLite persistence settings."""
-    db_path: str = "data/monitor.db"
+    db_path: str = "data/notifyme.db"
 
 
 @dataclass
 class AppConfig:
-    """Root application configuration."""
+    """Root configuration holding all sub-components."""
     telegram: TelegramConfig = field(default_factory=TelegramConfig)
     x_account: XAccountConfig = field(default_factory=XAccountConfig)
     poll: PollConfig = field(default_factory=PollConfig)
@@ -94,110 +93,77 @@ class AppConfig:
 
 
 def load_config(config_path: str = "config.yaml", env_file: str = ".env") -> AppConfig:
-    """Load configuration from YAML and environment variables.
-
-    Environment variables take precedence over config.yaml values for sensitive fields.
-    """
+    """Load configuration prioritizing environment variables over YAML defaults."""
     if os.path.exists(env_file):
-        load_dotenv(dotenv_path=env_file)
-    else:
-        load_dotenv()
+        load_dotenv(env_file, override=True)
 
-    yaml_data: dict = {}
+    raw_yaml: dict = {}
     if os.path.exists(config_path):
         with open(config_path, "r", encoding="utf-8") as f:
-            yaml_data = yaml.safe_load(f) or {}
+            try:
+                raw_yaml = yaml.safe_load(f) or {}
+            except yaml.YAMLError as exc:
+                raise ValueError(f"Error parsing {config_path}: {exc}") from exc
 
-    # 1. Telegram
-    tg_raw = yaml_data.get("telegram", {})
-    tg_token = os.getenv("TELEGRAM_BOT_TOKEN") or tg_raw.get("bot_token", "")
-    tg_chat_id = os.getenv("TELEGRAM_CHAT_ID") or str(tg_raw.get("chat_id", ""))
-    tg_alert_chat_id = os.getenv("TELEGRAM_ALERT_CHAT_ID") or str(tg_raw.get("alert_chat_id", ""))
-    telegram_cfg = TelegramConfig(
-        bot_token=tg_token,
-        chat_id=tg_chat_id,
-        alert_chat_id=tg_alert_chat_id or tg_chat_id,
-    )
+    tg_raw = raw_yaml.get("telegram", {})
+    x_raw = raw_yaml.get("x_account", {})
+    poll_raw = raw_yaml.get("poll", {})
+    filters_raw = raw_yaml.get("filters", {})
+    alerts_raw = raw_yaml.get("alerts", {})
+    web_raw = raw_yaml.get("web", {})
+    storage_raw = raw_yaml.get("storage", {})
 
-    # 2. X Account
-    x_raw = yaml_data.get("x_account", {})
-    x_username = os.getenv("X_USERNAME") or x_raw.get("username", "")
-    x_email = os.getenv("X_EMAIL") or x_raw.get("email", "")
-    x_password = os.getenv("X_PASSWORD") or x_raw.get("password", "")
-    x_totp = os.getenv("X_TOTP_SECRET") or x_raw.get("totp_secret", "")
-    x_list_id = os.getenv("X_LIST_ID") or str(x_raw.get("list_id", ""))
-    x_cookies = os.getenv("X_COOKIES_PATH") or x_raw.get("cookies_path", "data/cookies.json")
-    x_cfg = XAccountConfig(
-        username=x_username,
-        email=x_email,
-        password=x_password,
-        totp_secret=x_totp,
-        list_id=x_list_id,
-        cookies_path=x_cookies,
-    )
-
-    # 3. Poll
-    poll_raw = yaml_data.get("poll", {})
-    poll_cfg = PollConfig(
-        interval_seconds=int(poll_raw.get("interval_seconds", 60)),
-        jitter_max_seconds=int(poll_raw.get("jitter_max_seconds", 10)),
-    )
-
-    # 4. Filters
-    filters_raw = yaml_data.get("filters", {})
-    overrides_raw = filters_raw.get("account_overrides", {}) or {}
-    overrides_parsed: dict[str, AccountOverrideConfig] = {}
-    for handle, o_cfg in overrides_raw.items():
-        if isinstance(o_cfg, dict):
-            overrides_parsed[handle.lower().lstrip("@")] = AccountOverrideConfig(
-                include_replies=o_cfg.get("include_replies"),
-                include_retweets=o_cfg.get("include_retweets"),
-                include_quotes=o_cfg.get("include_quotes"),
-                keyword_allowlist=o_cfg.get("keyword_allowlist"),
-                keyword_blocklist=o_cfg.get("keyword_blocklist"),
+    # Account overrides parsing
+    raw_overrides = filters_raw.get("account_overrides", {})
+    parsed_overrides: dict[str, AccountOverrideConfig] = {}
+    for handle, rules in raw_overrides.items():
+        if isinstance(rules, dict):
+            parsed_overrides[handle.lower()] = AccountOverrideConfig(
+                include_replies=rules.get("include_replies"),
+                include_retweets=rules.get("include_retweets"),
+                include_quotes=rules.get("include_quotes"),
+                keyword_allowlist=rules.get("keyword_allowlist"),
+                keyword_blocklist=rules.get("keyword_blocklist"),
             )
 
-    filter_cfg = FilterConfig(
-        include_replies=bool(filters_raw.get("include_replies", False)),
-        include_retweets=bool(filters_raw.get("include_retweets", False)),
-        include_quotes=bool(filters_raw.get("include_quotes", False)),
-        keyword_allowlist=[str(w).lower() for w in filters_raw.get("keyword_allowlist", []) or []],
-        keyword_blocklist=[str(w).lower() for w in filters_raw.get("keyword_blocklist", []) or []],
-        account_overrides=overrides_parsed,
-    )
-
-    # 5. Alerts
-    alerts_raw = yaml_data.get("alerts", {})
-    alert_cfg = AlertConfig(
-        max_consecutive_failures=int(alerts_raw.get("max_consecutive_failures", 5)),
-        inactivity_alert_minutes=int(alerts_raw.get("inactivity_alert_minutes", 10)),
-        alert_cooldown_minutes=int(alerts_raw.get("alert_cooldown_minutes", 30)),
-    )
-
-    # 6. Web Dashboard
-    web_raw = yaml_data.get("web", {})
-    web_cfg = WebConfig(
-        enabled=bool(web_raw.get("enabled", True)),
-        host=str(web_raw.get("host", "127.0.0.1")),
-        port=int(web_raw.get("port", 8080)),
-    )
-
-    # 7. Storage
-    storage_raw = yaml_data.get("storage", {})
-    storage_cfg = StorageConfig(
-        db_path=str(storage_raw.get("db_path", "data/monitor.db")),
-    )
-
-    # Ensure parent directories exist
-    Path(x_cfg.cookies_path).parent.mkdir(parents=True, exist_ok=True)
-    Path(storage_cfg.db_path).parent.mkdir(parents=True, exist_ok=True)
-
     return AppConfig(
-        telegram=telegram_cfg,
-        x_account=x_cfg,
-        poll=poll_cfg,
-        filters=filter_cfg,
-        alerts=alert_cfg,
-        web=web_cfg,
-        storage=storage_cfg,
+        telegram=TelegramConfig(
+            bot_token=os.getenv("TELEGRAM_BOT_TOKEN", tg_raw.get("bot_token", "")),
+            chat_id=os.getenv("TELEGRAM_CHAT_ID", tg_raw.get("chat_id", "")),
+            alert_chat_id=os.getenv("TELEGRAM_ALERT_CHAT_ID", tg_raw.get("alert_chat_id", "")),
+        ),
+        x_account=XAccountConfig(
+            username=os.getenv("X_USERNAME", x_raw.get("username", "")),
+            email=os.getenv("X_EMAIL", x_raw.get("email", "")),
+            password=os.getenv("X_PASSWORD", x_raw.get("password", "")),
+            totp_secret=os.getenv("X_TOTP_SECRET", x_raw.get("totp_secret", "")),
+            list_id=os.getenv("X_LIST_ID", str(x_raw.get("list_id", ""))),
+            cookies_path=os.getenv("X_COOKIES_PATH", x_raw.get("cookies_path", "data/cookies.json")),
+            auth_token=os.getenv("X_AUTH_TOKEN", x_raw.get("auth_token", "")),
+            ct0=os.getenv("X_CT0", x_raw.get("ct0", "")),
+        ),
+        poll=PollConfig(
+            interval_seconds=int(os.getenv("POLL_INTERVAL_SECONDS", poll_raw.get("interval_seconds", 60))),
+            jitter_max_seconds=int(os.getenv("POLL_JITTER_MAX_SECONDS", poll_raw.get("jitter_max_seconds", 10))),
+        ),
+        filters=FilterConfig(
+            include_replies=bool(filters_raw.get("include_replies", False)),
+            include_retweets=bool(filters_raw.get("include_retweets", False)),
+            include_quotes=bool(filters_raw.get("include_quotes", False)),
+            keyword_allowlist=list(filters_raw.get("keyword_allowlist", [])),
+            keyword_blocklist=list(filters_raw.get("keyword_blocklist", [])),
+            account_overrides=parsed_overrides,
+        ),
+        alerts=AlertConfig(
+            max_consecutive_failures=int(alerts_raw.get("max_consecutive_failures", 5)),
+            inactivity_alert_minutes=int(alerts_raw.get("inactivity_alert_minutes", 10)),
+            alert_cooldown_minutes=int(alerts_raw.get("alert_cooldown_minutes", 30)),
+        ),
+        web=WebConfig(
+            host=os.getenv("WEB_HOST", web_raw.get("host", "127.0.0.1")),
+            port=int(os.getenv("WEB_PORT", web_raw.get("port", 8080))),
+        ),
+        storage=StorageConfig(
+            db_path=os.getenv("DB_PATH", storage_raw.get("db_path", "data/notifyme.db")),
+        ),
     )
