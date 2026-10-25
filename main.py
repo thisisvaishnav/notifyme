@@ -369,7 +369,19 @@ async def main() -> None:
     web_server: WebDashboard | None = None
     if config.web.enabled:
         web_server = WebDashboard(engine, host=config.web.host, port=config.web.port)
-        await web_server.start()
+        try:
+            await web_server.start()
+        except OSError as exc:
+            if exc.errno == 48:
+                logger.error(
+                    "Port %s is already in use! An instance of NotifyMe is already running in the background. "
+                    "Run 'pkill -f \"python main.py\"' to stop it, or check your running services.",
+                    config.web.port,
+                )
+                await notifier.close()
+                await fetcher.close()
+                return
+            raise
 
     stop_event = asyncio.Event()
 
