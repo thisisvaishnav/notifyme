@@ -1,0 +1,25 @@
+[Unit]
+Description=NotifyMe X Account Monitor with Telegram Alerts
+After=network.target network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=YOUR_SYSTEM_USER
+WorkingDirectory=/opt/notifyme
+EnvironmentFile=/opt/notifyme/.env
+ExecStart=/opt/notifyme/.venv/bin/python main.py
+
+# Restart policy for 24/7 reliability
+Restart=always
+RestartSec=10
+
+# Resource and security limits
+StandardOutput=journal
+StandardError=journal
+LimitNOFILE=65536
+KillMode=mixed
+TimeoutStopSec=20
+
+[Install]
+WantedBy=multi-user.target

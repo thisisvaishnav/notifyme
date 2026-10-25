@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  notifyme:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: notifyme-monitor
+    restart: unless-stopped
+    env_file:
+      - .env
+    volumes:
+      # Persistent volume for SQLite database, cookies, and rotating logs
+      - ./data:/app/data
+      # Mount configuration file
+      - ./config.yaml:/app/config.yaml:ro
+    ports:
+      # Local desktop dashboard access: http://localhost:8080
+      - "127.0.0.1:8080:8080"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/api/status"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 10s

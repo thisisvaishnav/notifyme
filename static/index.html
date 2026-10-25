@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NotifyMe • X Account Monitor</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+</head>
+<body>
+  <div class="app-layout">
+    <!-- Top Header -->
+    <header class="header">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path>
+          </svg>
+        </div>
+        <div class="brand-info">
+          <h1>NotifyMe</h1>
+          <p class="tagline">X List Monitor • Telegram Dispatcher</p>
+        </div>
+      </div>
+
+      <div class="header-center">
+        <div id="status-pill" class="status-pill status-running">
+          <span class="status-dot"></span>
+          <span id="status-text">INITIALIZING</span>
+        </div>
+        <div class="meta-tag">
+          <span class="meta-label">Uptime:</span>
+          <span id="uptime-text" class="mono">--:--:--</span>
+        </div>
+      </div>
+
+      <div class="header-actions">
+        <button id="btn-toggle-pause" class="btn btn-secondary">
+          <span class="btn-icon">⏸</span>
+          <span id="btn-pause-text">Pause</span>
+        </button>
+        <button id="btn-poll-now" class="btn btn-primary">
+          <span class="btn-icon">⚡</span>
+          <span>Poll Now</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Main Content Area -->
+    <main class="main-content">
+      <!-- Metric Cards Grid -->
+      <section class="metrics-grid">
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-title">Tweets Notified</span>
+            <span class="metric-icon">📢</span>
+          </div>
+          <div class="metric-value mono" id="metric-notified">0</div>
+          <div class="metric-footer">Forwarded to Telegram</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-title">Total Poll Cycles</span>
+            <span class="metric-icon">🔄</span>
+          </div>
+          <div class="metric-value mono" id="metric-polls">0</div>
+          <div class="metric-footer" id="metric-polls-footer">0 errors recorded</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-title">Last Poll Status</span>
+            <span class="metric-icon">⏱</span>
+          </div>
+          <div class="metric-value metric-value-sm" id="metric-last-poll">Pending</div>
+          <div class="metric-footer mono" id="metric-last-seen-id">Baseline: --</div>
+        </div>
+
+        <div class="metric-card">
+          <div class="metric-header">
+            <span class="metric-title">Monitored X List</span>
+            <span class="metric-icon">📋</span>
+          </div>
+          <div class="metric-value mono metric-value-sm" id="metric-list-id">--</div>
+          <div class="metric-footer" id="metric-interval-footer">Every 60s + Jitter</div>
+        </div>
+      </section>
+
+      <!-- Split Layout: Feed & Diagnostics -->
+      <div class="columns-grid">
+        <!-- Left: Recent Tweets Feed -->
+        <section class="card feed-card">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h2>Recent Telegram Deliveries</h2>
+              <span class="badge" id="tweet-count-badge">0 Posts</span>
+            </div>
+            <span class="refresh-indicator" id="live-refresh-text">Live auto-refresh</span>
+          </div>
+
+          <div class="tweets-feed" id="tweets-feed">
+            <div class="empty-state">
+              <div class="empty-icon">📭</div>
+              <h3>No Posts Notified Yet</h3>
+              <p>When monitored accounts tweet, new alerts will appear here in real-time.</p>
+            </div>
+          </div>
+        </section>
+
+        <!-- Right: Telemetry & Config & Recent Poll History -->
+        <aside class="sidebar-column">
+          <!-- Active Filter Rules Card -->
+          <div class="card">
+            <div class="card-header">
+              <h2>Active Rules</h2>
+              <span class="badge badge-success">Optimized</span>
+            </div>
+            <div class="rules-list">
+              <div class="rule-item">
+                <span class="rule-name">Original Posts</span>
+                <span class="rule-status enabled">Included</span>
+              </div>
+              <div class="rule-item">
+                <span class="rule-name">Retweets</span>
+                <span class="rule-status disabled" id="rule-retweets">Filtered</span>
+              </div>
+              <div class="rule-item">
+                <span class="rule-name">Replies</span>
+                <span class="rule-status disabled" id="rule-replies">Filtered</span>
+              </div>
+              <div class="rule-item">
+                <span class="rule-name">Quote Tweets</span>
+                <span class="rule-status disabled" id="rule-quotes">Filtered</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Poll History Log Card -->
+          <div class="card poll-history-card">
+            <div class="card-header">
+              <h2>Recent Poll Telemetry</h2>
+              <span class="mono" style="font-size: 11px; color: var(--text-dim);">Last 10 Cycles</span>
+            </div>
+            <div class="table-container">
+              <table class="telemetry-table">
+                <thead>
+                  <tr>
+                    <th>Time</th>
+                    <th>Status</th>
+                    <th>Found</th>
+                    <th>Alerted</th>
+                  </tr>
+                </thead>
+                <tbody id="polls-table-body">
+                  <tr>
+                    <td colspan="4" style="text-align: center; color: var(--text-dim); padding: 20px;">
+                      Waiting for initial poll cycle...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </main>
+
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container"></div>
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,64 @@
+# X Account Monitor Configuration
+# Non-secret options live here. Sensitive secrets can be loaded from .env
+
+telegram:
+  # Can be left blank if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are set in .env
+  bot_token: ""
+  chat_id: ""
+  alert_chat_id: ""
+
+x_account:
+  # Credentials can be loaded from .env
+  username: ""
+  email: ""
+  password: ""
+  totp_secret: ""
+  list_id: ""
+  cookies_path: "data/cookies.json"
+
+poll:
+  # Poll interval in seconds (default: 60s)
+  interval_seconds: 60
+  # Random jitter added to sleep time to appear more natural (0 to 10s)
+  jitter_max_seconds: 10
+
+filters:
+  # Tweet types to forward:
+  include_replies: false
+  include_retweets: false
+  include_quotes: false
+
+  # Optional global keyword allow-list (if non-empty, tweets MUST contain at least one keyword)
+  keyword_allowlist: []
+    # - "bitcoin"
+    # - "ethereum"
+
+  # Optional global keyword block-list (tweets containing any of these words are skipped)
+  keyword_blocklist: []
+    # - "giveaway"
+    # - "airdrop"
+
+  # Per-account overrides by handle (without @)
+  account_overrides: {}
+    # elonmusk:
+    #   include_retweets: true
+    #   include_quotes: true
+    #   keyword_allowlist: ["starship", "spacex", "tesla"]
+
+alerts:
+  # Dispatch Telegram alert if this many consecutive failures occur
+  max_consecutive_failures: 5
+  # Dispatch warning if no successful poll occurred within this duration (minutes)
+  inactivity_alert_minutes: 10
+  # Rate limit cooldown between repeated alert types to prevent notification spam (minutes)
+  alert_cooldown_minutes: 30
+
+web:
+  # Embedded local HTML/CSS desktop dashboard
+  enabled: true
+  host: "127.0.0.1"
+  port: 8080
+
+storage:
+  # Persistent SQLite database file for deduplication and telemetry
+  db_path: "data/monitor.db"

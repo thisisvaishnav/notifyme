@@ -1,0 +1,40 @@
+# X Account Monitor Configuration
+# Non-secret options live here. Sensitive secrets can be loaded from .env
+
+telegram:
+  bot_token: ""
+  chat_id: ""
+  alert_chat_id: ""
+
+x_account:
+  username: ""
+  email: ""
+  password: ""
+  totp_secret: ""
+  list_id: ""
+  cookies_path: "data/cookies.json"
+
+poll:
+  interval_seconds: 60
+  jitter_max_seconds: 10
+
+filters:
+  include_replies: false
+  include_retweets: false
+  include_quotes: false
+  keyword_allowlist: []
+  keyword_blocklist: []
+  account_overrides: {}
+
+alerts:
+  max_consecutive_failures: 5
+  inactivity_alert_minutes: 10
+  alert_cooldown_minutes: 30
+
+web:
+  enabled: true
+  host: "127.0.0.1"
+  port: 8080
+
+storage:
+  db_path: "data/monitor.db"
