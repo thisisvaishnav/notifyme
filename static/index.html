@@ -89,6 +89,85 @@
         </div>
       </section>
 
+      <!-- Follower & Unfollower Tracker Section -->
+      <section class="card follower-card" style="margin-bottom: 24px;">
+        <div class="card-header">
+          <div class="card-title-group">
+            <h2>👥 Daily Follower & Unfollower Tracker (<span id="tracker-target-handle">@vaaisshnav</span>)</h2>
+            <span class="badge badge-success" id="tracker-status-badge">Safe Browsing (10–20s Pacing)</span>
+          </div>
+          <div class="header-actions">
+            <button id="btn-check-followers-now" class="btn btn-secondary">
+              <span class="btn-icon">🔍</span>
+              <span id="btn-check-followers-text">Check Followers Now</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Follower Metrics Sub-Grid -->
+        <div class="metrics-grid" style="margin-bottom: 20px;">
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-title">Total Followers</span>
+              <span class="metric-icon">👥</span>
+            </div>
+            <div class="metric-value mono" id="follower-count">--</div>
+            <div class="metric-footer" id="follower-net-footer">Baseline checking...</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-title">Total Following</span>
+              <span class="metric-icon">📡</span>
+            </div>
+            <div class="metric-value mono" id="following-count">--</div>
+            <div class="metric-footer">Target accounts followed</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-title">Not Following Back</span>
+              <span class="metric-icon">⚠️</span>
+            </div>
+            <div class="metric-value mono" id="not-following-back-count">--</div>
+            <div class="metric-footer">Unreciprocated follows</div>
+          </div>
+          <div class="metric-card">
+            <div class="metric-header">
+              <span class="metric-title">Daily Schedule</span>
+              <span class="metric-icon">⏰</span>
+            </div>
+            <div class="metric-value metric-value-sm mono" id="follower-schedule-time">09:00 AM</div>
+            <div class="metric-footer" id="follower-prep-footer">Pre-collection begins at 08:20 AM</div>
+          </div>
+        </div>
+
+        <!-- Not Following Back Accounts Table -->
+        <div class="card-header" style="padding-top: 0; padding-left: 0; padding-right: 0;">
+          <div class="card-title-group">
+            <h3>Accounts You Follow Who Don't Follow Back</h3>
+            <span class="badge" id="nfb-badge">0 Accounts</span>
+          </div>
+          <span style="font-size: 12px; color: var(--text-dim);">Click account to review & unfollow on X</span>
+        </div>
+        <div class="table-container" style="max-height: 280px; overflow-y: auto;">
+          <table class="telemetry-table">
+            <thead>
+              <tr>
+                <th>Username</th>
+                <th>Name</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="not-following-back-table-body">
+              <tr>
+                <td colspan="3" style="text-align: center; color: var(--text-dim); padding: 15px;">
+                  No audit data yet. Click "Check Followers Now" or wait for scheduled audit.
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
       <!-- Split Layout: Feed & Diagnostics -->
       <div class="columns-grid">
         <!-- Left: Recent Tweets Feed -->
@@ -103,7 +182,7 @@
 
           <div class="tweets-feed" id="tweets-feed">
             <div class="empty-state">
-              <div class="empty-icon">📬</div>
+              <div class="empty-icon">📫</div>
               <h3>No Posts Notified Yet</h3>
               <p>When monitored accounts tweet, new alerts will appear here in real-time.</p>
             </div>
@@ -142,7 +221,7 @@
           <div class="card poll-history-card">
             <div class="card-header">
               <h2>Recent Poll Telemetry</h2>
-              <span class="mono" style="font-size: 11px; color: var(--text-dim); ">Last 10 Cycles</span>
+              <span class="mono" style="font-size: 11px; color: var(--text-dim);">Last 10 Cycles</span>
             </div>
             <div class="table-container">
               <table class="telemetry-table">

@@ -38,3 +38,12 @@ web:
 
 storage:
   db_path: "data/monitor.db"
+
+follower_tracker:
+  enabled: true
+  target_handle: "vaaisshnav"
+  schedule_time: "09:00"
+  prep_lead_minutes: 40
+  min_request_delay_seconds: 10
+  max_request_delay_seconds: 20
+  send_telegram_digest: true

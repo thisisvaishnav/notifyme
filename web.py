@@ -3,6 +3,7 @@
 from __future__ import annotations
 import os
 import time
+import asyncio
 import logging
 from aiohttp import web
 from typing import TYPE_CHECKING, Any
@@ -30,6 +31,11 @@ class WebDashboard:
         self.app.router.add_post("/api/pause", self.handle_api_pause)
         self.app.router.add_post("/api/resume", self.handle_api_resume)
         self.app.router.add_post("/api/poll_now", self.handle_api_poll_now)
+
+        # Follower tracker API routes
+        self.app.router.add_get("/api/followers/status", self.handle_api_follower_status)
+        self.app.router.add_get("/api/followers/not_following_back", self.handle_api_not_following_back)
+        self.app.router.add_post("/api/followers/check_now", self.handle_api_follower_check_now)
 
         static_dir = os.path.join(os.path.dirname(__file__), "static")
         if os.path.exists(static_dir):
@@ -68,6 +74,11 @@ class WebDashboard:
                 "allowlist_count": len(self.engine.config.filters.keyword_allowlist),
                 "blocklist_count": len(self.engine.config.filters.keyword_blocklist),
             },
+            "follower_tracker": {
+                "enabled": getattr(self.engine.config.follower_tracker, "enabled", False),
+                "target_handle": getattr(self.engine.config.follower_tracker, "target_handle", "vaaisshnav"),
+                "schedule_time": getattr(self.engine.config.follower_tracker, "schedule_time", "09:00"),
+            },
         }
         return web.json_response(data)
 
@@ -88,6 +99,51 @@ class WebDashboard:
         logger.info("Manual poll triggered via local web dashboard.")
         self.engine.trigger_immediate_poll()
         return web.json_response({"success": True, "message": "Poll triggered"})
+
+    async def handle_api_follower_status(self, request: web.Request) -> web.Response:
+        """Return current follower status and recent snapshots."""
+        target_handle = getattr(self.engine.config.follower_tracker, "target_handle", "vaaisshnav")
+        latest = self.engine.storage.get_latest_follower_snapshot(target_handle)
+        recent = self.engine.storage.get_recent_follower_snapshots(target_handle, limit=5)
+        is_auditing = False
+        if hasattr(self.engine, "follower_tracker") and self.engine.follower_tracker:
+            is_auditing = self.engine.follower_tracker._is_running_audit
+
+        return web.json_response({
+            "target_handle": target_handle,
+            "is_auditing": is_auditing,
+            "latest_snapshot": latest,
+            "recent_snapshots": recent,
+            "schedule_time": getattr(self.engine.config.follower_tracker, "schedule_time", "09:00"),
+            "prep_lead_minutes": getattr(self.engine.config.follower_tracker, "prep_lead_minutes", 40),
+        })
+
+    async def handle_api_not_following_back(self, request: web.Request) -> web.Response:
+        """Return accounts followed by target that do not follow back."""
+        target_handle = getattr(self.engine.config.follower_tracker, "target_handle", "vaaisshnav")
+        not_back = self.engine.storage.get_not_following_back(target_handle)
+        return web.json_response({
+            "target_handle": target_handle,
+            "count": len(not_back),
+            "not_following_back": not_back,
+        })
+
+    async def handle_api_follower_check_now(self, request: web.Request) -> web.Response:
+        """Trigger an immediate safe follower audit in the background."""
+        if not hasattr(self.engine, "follower_tracker") or not self.engine.follower_tracker:
+            return web.json_response({"success": False, "error": "Follower tracker not configured"}, status=400)
+
+        if self.engine.follower_tracker._is_running_audit:
+            return web.json_response({"success": False, "message": "Follower audit is already currently running."})
+
+        # Ensure fetcher client is attached
+        if not self.engine.follower_tracker.fetcher_client and hasattr(self.engine.fetcher, "client"):
+            self.engine.follower_tracker.fetcher_client = self.engine.fetcher.client
+
+        # Run in background task
+        asyncio.create_task(self.engine.follower_tracker.run_audit(send_digest_now=True))
+        logger.info("Manual follower audit triggered from web dashboard.")
+        return web.json_response({"success": True, "message": "Follower audit started safely in the background."})
 
     async def start(self) -> None:
         """Start local web server asynchronously."""

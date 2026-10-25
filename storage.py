@@ -4,7 +4,11 @@ from __future__ import annotations
 import sqlite3
 import json
 from pathlib import Path
-from typing import Any
+from datetime import datetime
+from typing import Any, TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from follower_tracker import FollowerUser
 
 
 class SQLiteStorage:
@@ -56,6 +60,33 @@ class SQLiteStorage:
                     error_message TEXT
                 )
             """)
+
+            # Follower tracker snapshot table
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS follower_snapshots (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    target_handle TEXT NOT NULL,
+                    total_followers INTEGER NOT NULL,
+                    total_following INTEGER NOT NULL,
+                    recorded_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            """)
+
+            # Follower and following users for each snapshot
+            cursor.execute("""
+                CREATE TABLE IF NOT EXISTS follower_users (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    snapshot_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    screen_name TEXT NOT NULL,
+                    name TEXT,
+                    relationship TEXT NOT NULL, -- 'follower' or 'following'
+                    FOREIGN KEY (snapshot_id) REFERENCES follower_snapshots(id) ON DELETE CASCADE
+                )
+            """)
+
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_follower_users_snap ON follower_users(snapshot_id)")
+            cursor.execute("CREATE INDEX IF NOT EXISTS idx_follower_users_user_rel ON follower_users(user_id, relationship)")
 
             conn.commit()
 
@@ -226,3 +257,124 @@ class SQLiteStorage:
                 "last_seen_id": self.get_last_seen_id(),
                 "baseline_set": self.is_baseline_set(),
             }
+
+    # Follower Tracker Storage Methods
+    def save_follower_snapshot(
+        self,
+        target_handle: str,
+        followers: list[FollowerUser],
+        following: list[FollowerUser],
+        recorded_at: datetime | None = None,
+    ) -> int:
+        """Save a new follower/following snapshot with its complete roster."""
+        recorded_time = recorded_at.strftime("%Y-%m-%d %H:%M:%S") if recorded_at else datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                INSERT INTO follower_snapshots (target_handle, total_followers, total_following, recorded_at)
+                VALUES (?, ?, ?, ?)
+                """,
+                (target_handle.lower(), len(followers), len(following), recorded_time),
+            )
+            snapshot_id = cursor.lastrowid
+
+            rows_to_insert = []
+            for u in followers:
+                rows_to_insert.append((snapshot_id, u.id, u.screen_name, u.name, "follower"))
+            for u in following:
+                rows_to_insert.append((snapshot_id, u.id, u.screen_name, u.name, "following"))
+
+            cursor.executemany(
+                """
+                INSERT INTO follower_users (snapshot_id, user_id, screen_name, name, relationship)
+                VALUES (?, ?, ?, ?, ?)
+                """,
+                rows_to_insert,
+            )
+            conn.commit()
+            return snapshot_id
+
+    def get_latest_follower_snapshot(self, target_handle: str) -> dict[str, Any] | None:
+        """Retrieve the most recent snapshot for the target handle."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT id, target_handle, total_followers, total_following, recorded_at
+                FROM follower_snapshots
+                WHERE target_handle = ?
+                ORDER BY id DESC
+                LIMIT 1
+                """,
+                (target_handle.lower(),),
+            )
+            row = cursor.fetchone()
+            return dict(row) if row else None
+
+    def get_recent_follower_snapshots(self, target_handle: str, limit: int = 5) -> list[dict[str, Any]]:
+        """Retrieve recent snapshots for the target handle."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT id, target_handle, total_followers, total_following, recorded_at
+                FROM follower_snapshots
+                WHERE target_handle = ?
+                ORDER BY id DESC
+                LIMIT ?
+                """,
+                (target_handle.lower(), limit),
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_snapshot_users(self, snapshot_id: int, relationship: str | None = None) -> list[dict[str, Any]]:
+        """Fetch users from a specific snapshot, optionally filtered by relationship type ('follower' or 'following')."""
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            if relationship:
+                cursor.execute(
+                    """
+                    SELECT user_id, screen_name, name, relationship
+                    FROM follower_users
+                    WHERE snapshot_id = ? AND relationship = ?
+                    """,
+                    (snapshot_id, relationship),
+                )
+            else:
+                cursor.execute(
+                    """
+                    SELECT user_id, screen_name, name, relationship
+                    FROM follower_users
+                    WHERE snapshot_id = ?
+                    """,
+                    (snapshot_id,),
+                )
+            return [dict(row) for row in cursor.fetchall()]
+
+    def get_not_following_back(self, target_handle: str) -> list[dict[str, Any]]:
+        """Retrieve accounts that target_handle follows, but who do not follow back in the latest snapshot."""
+        latest = self.get_latest_follower_snapshot(target_handle)
+        if not latest:
+            return []
+
+        snapshot_id = latest["id"]
+        with self._get_connection() as conn:
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT user_id, screen_name, name
+                FROM follower_users
+                WHERE snapshot_id = ? AND relationship = 'following'
+                  AND user_id NOT IN (
+                      SELECT user_id FROM follower_users
+                      WHERE snapshot_id = ? AND relationship = 'follower'
+                  )
+                ORDER BY screen_name COLLATE NOCASE ASC
+                """,
+                (snapshot_id, snapshot_id),
+            )
+            return [dict(row) for row in cursor.fetchall()]
+
+
+StorageEngine = SQLiteStorage

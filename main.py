@@ -9,6 +9,7 @@ import signal
 import logging
 from logging.handlers import RotatingFileHandler
 import asyncio
+from datetime import datetime, time as dtime, timedelta
 from pathlib import Path
 from typing import Any
 
@@ -26,6 +27,7 @@ from fetcher import (
     NetworkException,
     FetcherException,
 )
+from follower_tracker import FollowerTrackerEngine, calculate_prep_start_time
 from web import WebDashboard
 
 
@@ -48,11 +50,14 @@ def setup_logging(log_dir: str = "data") -> logging.Logger:
     c_handler.setFormatter(c_format)
     logger.addHandler(c_handler)
 
-    # Rotating File Handler (5 MB max per file, keeps 3 backups)
-    f_handler = RotatingFileHandler(log_file, maxBytes=5 * 1024 * 1024, backupCount=3)
-    f_handler.setLevel(logging.DEBUG)
+    # Rotating File Handler (10MB per file, max 3 files)
+    f_handler = RotatingFileHandler(
+        log_file, maxBytes=10 * 1024 * 1024, backupCount=3, encoding="utf-8"
+    )
+    f_handler.setLevel(logging.INFO)
     f_format = logging.Formatter(
-        '{"timestamp": "%(asctime)s", "level": "%(levelname)s", "logger": "%(name)s", "message": "%(message)s"}'
+        "%(asctime)s [%(levelname)s] [%(name)s]: %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
     )
     f_handler.setFormatter(f_format)
     logger.addHandler(f_handler)
@@ -115,6 +120,13 @@ class MonitorEngine:
             max_seconds=900,
             factor=2.0,
             jitter_max_seconds=config.poll.jitter_max_seconds,
+        )
+
+        self.follower_tracker = FollowerTrackerEngine(
+            config=config.follower_tracker,
+            storage=storage,
+            fetcher_client=getattr(fetcher, "client", None),
+            notifier=notifier,
         )
 
         self.logger = logging.getLogger("notifyme.engine")
@@ -219,54 +231,98 @@ class MonitorEngine:
         elif isinstance(exc, NetworkException):
             self.logger.warning("Network failure reaching X: %s", err_msg)
         else:
-            self.logger.error("Unexpected fetcher error: %s", exc)
+            self.logger.error("Unexpected error during poll cycle: %s", err_msg, exc_info=True)
 
-        self.storage.record_poll("error", tweets_found=0, tweets_notified=0, error_message=err_msg)
+        self.storage.record_poll("error", error_message=err_msg)
 
-        # Check consecutive failure threshold
         if self.consecutive_failures >= self.config.alerts.max_consecutive_failures:
             await self.notifier.send_alert(
                 "consecutive_failures",
-                f"Monitor failed {self.consecutive_failures} consecutive times. Last error: {err_msg}",
+                f"Polling has failed {self.consecutive_failures} consecutive times. Last error: {err_msg}",
             )
 
-        # Check inactivity threshold
-        inactive_minutes = (time.time() - self.last_successful_poll) / 60
-        if inactive_minutes >= self.config.alerts.inactivity_alert_minutes:
-            await self.notifier.send_alert(
-                "inactivity_warning",
-                f"No successful poll has completed in {int(inactive_minutes)} minutes.",
-            )
+    async def run_follower_tracker_loop(self) -> None:
+        """Run daily safe-pacing follower tracking loop."""
+        if not self.config.follower_tracker.enabled:
+            return
+
+        self.logger.info(
+            "Follower tracker active for @%s (Target digest: %s, Lead time: %dm)",
+            self.config.follower_tracker.target_handle,
+            self.config.follower_tracker.schedule_time,
+            self.config.follower_tracker.prep_lead_minutes,
+        )
+
+        while self.is_running:
+            try:
+                sched_parts = self.config.follower_tracker.schedule_time.split(":")
+                target_hour = int(sched_parts[0])
+                target_min = int(sched_parts[1]) if len(sched_parts) > 1 else 0
+                target_time = dtime(target_hour, target_min)
+
+                prep_time = calculate_prep_start_time(
+                    target_time,
+                    lead_minutes=self.config.follower_tracker.prep_lead_minutes,
+                )
+
+                now = datetime.now()
+                next_run = datetime.combine(now.date(), prep_time)
+                if next_run <= now:
+                    next_run += timedelta(days=1)
+
+                seconds_until_run = (next_run - now).total_seconds()
+                self.logger.info(
+                    "Next follower audit scheduled at %s (in %.1f hours)",
+                    next_run.strftime("%Y-%m-%d %H:%M:%S"),
+                    seconds_until_run / 3600,
+                )
+
+                await asyncio.sleep(seconds_until_run)
+                if not self.is_running:
+                    break
+
+                self.logger.info("Triggering scheduled daily follower audit...")
+                if not self.follower_tracker.fetcher_client and hasattr(self.fetcher, "client"):
+                    self.follower_tracker.fetcher_client = self.fetcher.client
+
+                await self.follower_tracker.run_audit(send_digest_now=True)
+
+            except asyncio.CancelledError:
+                break
+            except Exception as e:
+                self.logger.error("Error in follower tracker loop: %s", e, exc_info=True)
+                await asyncio.sleep(300)
 
     async def run_loop(self) -> None:
-        """Main autonomous 24/7 scheduler loop."""
+        """Continuous polling loop respecting interval, jitter, and backoff."""
         self.is_running = True
-        self.logger.info("Initializing X Fetcher...")
+        self.logger.info("Starting monitoring loop...")
+
+        # Initialize fetcher session
         try:
             await self.fetcher.initialize()
+            if hasattr(self.fetcher, "client"):
+                self.follower_tracker.fetcher_client = self.fetcher.client
         except Exception as exc:
-            self.logger.warning("Fetcher initialization warning: %s. Continuing to poll loop...", exc)
-
-        self.logger.info("Starting main monitor loop (interval: %ds)...", self.config.poll.interval_seconds)
+            self.logger.critical("Failed to initialize fetcher: %s", exc, exc_info=True)
+            await self.notifier.send_alert("init_failed", f"Failed to initialize X fetcher: {exc}")
+            return
 
         while self.is_running:
             if self.is_paused:
-                self.logger.info("Monitor is PAUSED. Sleeping 5 seconds...")
-                try:
-                    await asyncio.sleep(5)
-                except asyncio.CancelledError:
-                    break
+                self.logger.debug("Monitor is paused. Sleeping...")
+                await asyncio.sleep(2)
                 continue
 
             try:
+                prev_streak = self.consecutive_failures
                 await self.poll_once()
 
-                # On successful cycle, recover if failures were active
-                if self.consecutive_failures > 0:
-                    self.logger.info("Service recovered after %d failures.", self.consecutive_failures)
+                # If we just recovered from failures, send recovery notice
+                if prev_streak >= self.config.alerts.max_consecutive_failures:
                     await self.notifier.send_recovery_alert(
                         "consecutive_failures",
-                        "Poll cycle succeeded and normal monitoring resumed.",
+                        f"Polling recovered after {prev_streak} failures.",
                     )
                     await self.notifier.send_recovery_alert(
                         "session_expired",
@@ -329,8 +385,10 @@ async def main() -> None:
         except NotImplementedError:
             pass
 
-    # Run monitor task
-    monitor_task = asyncio.create_task(engine.run_loop())
+    # Run monitor task and optional follower tracker task
+    tasks = [asyncio.create_task(engine.run_loop())]
+    if config.follower_tracker.enabled:
+        tasks.append(asyncio.create_task(engine.run_follower_tracker_loop()))
 
     # Wait until shutdown signaled
     try:
@@ -339,11 +397,12 @@ async def main() -> None:
         pass
     finally:
         engine.is_running = False
-        monitor_task.cancel()
-        try:
-            await monitor_task
-        except asyncio.CancelledError:
-            pass
+        for t in tasks:
+            t.cancel()
+            try:
+                await t
+            except asyncio.CancelledError:
+                pass
 
         if web_server:
             await web_server.stop()

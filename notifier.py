@@ -69,6 +69,14 @@ class TelegramNotifier:
         message = self.format_tweet_message(tweet)
         return await self._send_raw_message(self.tg_config.chat_id, message)
 
+    async def send_message(self, message: str, chat_id: str | None = None) -> bool:
+        """Send a general HTML formatted message to the configured Telegram chat."""
+        target_chat = chat_id or self.tg_config.chat_id
+        if not self.tg_config.bot_token or not target_chat:
+            logger.warning("Telegram bot_token or chat_id is not configured; skipping message.")
+            return False
+        return await self._send_raw_message(target_chat, message)
+
     def can_send_alert(self, alert_type: str) -> bool:
         """Check if an alert type is past its cooldown period."""
         last_time = self._alert_timestamps.get(alert_type, 0.0)

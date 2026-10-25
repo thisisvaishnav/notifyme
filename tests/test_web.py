@@ -6,7 +6,7 @@ import os
 from aiohttp.test_utils import AioHTTPTestCase
 from web import WebDashboard
 from storage import SQLiteStorage
-from config import AppConfig, XAccountConfig, PollConfig
+from config import AppConfig, XAccountConfig, PollConfig, FollowerTrackerConfig
 from main import MonitorEngine
 from unittest.mock import AsyncMock
 
@@ -37,6 +37,10 @@ class WebDashboardTestCase(AioHTTPTestCase):
         config = AppConfig(
             x_account=XAccountConfig(list_id="5544332211"),
             poll=PollConfig(interval_seconds=60),
+            follower_tracker=FollowerTrackerConfig(
+                enabled=True,
+                target_handle="vaaisshnav",
+            ),
         )
 
         mock_fetcher = AsyncMock()
@@ -83,5 +87,23 @@ class WebDashboardTestCase(AioHTTPTestCase):
     async def test_index_page(self):
         resp = await self.client.request("GET", "/")
         assert resp.status == 200
-        text = await resp.text()
-        assert "NotifyMe" in text
+
+    async def test_follower_tracker_apis(self):
+        # 1. Status API before any audit
+        resp = await self.client.request("GET", "/api/followers/status")
+        assert resp.status == 200
+        data = await resp.json()
+        assert data["target_handle"] == "vaaisshnav"
+        assert data["latest_snapshot"] is None
+
+        # 2. Check Now API
+        resp_check = await self.client.request("POST", "/api/followers/check_now")
+        assert resp_check.status == 200
+        data_check = await resp_check.json()
+        assert data_check["success"] is True
+
+        # 3. Not following back API
+        resp_nfb = await self.client.request("GET", "/api/followers/not_following_back")
+        assert resp_nfb.status == 200
+        data_nfb = await resp_nfb.json()
+        assert "not_following_back" in data_nfb

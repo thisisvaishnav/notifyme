@@ -82,6 +82,18 @@ class StorageConfig:
 
 
 @dataclass
+class FollowerTrackerConfig:
+    """Daily follower and unfollower tracking configuration."""
+    enabled: bool = False
+    target_handle: str = "vaaisshnav"
+    schedule_time: str = "09:00"
+    prep_lead_minutes: int = 40
+    min_request_delay_seconds: int = 10
+    max_request_delay_seconds: int = 20
+    send_telegram_digest: bool = True
+
+
+@dataclass
 class AppConfig:
     """Root configuration holding all sub-components."""
     telegram: TelegramConfig = field(default_factory=TelegramConfig)
@@ -91,6 +103,7 @@ class AppConfig:
     alerts: AlertConfig = field(default_factory=AlertConfig)
     web: WebConfig = field(default_factory=WebConfig)
     storage: StorageConfig = field(default_factory=StorageConfig)
+    follower_tracker: FollowerTrackerConfig = field(default_factory=FollowerTrackerConfig)
 
 
 def load_config(config_path: str = "config.yaml", env_file: str = ".env") -> AppConfig:
@@ -113,6 +126,7 @@ def load_config(config_path: str = "config.yaml", env_file: str = ".env") -> App
     alerts_raw = raw_yaml.get("alerts", {})
     web_raw = raw_yaml.get("web", {})
     storage_raw = raw_yaml.get("storage", {})
+    tracker_raw = raw_yaml.get("follower_tracker", {})
 
     # Account overrides parsing
     raw_overrides = filters_raw.get("account_overrides", {})
@@ -126,6 +140,13 @@ def load_config(config_path: str = "config.yaml", env_file: str = ".env") -> App
                 keyword_allowlist=rules.get("keyword_allowlist"),
                 keyword_blocklist=rules.get("keyword_blocklist"),
             )
+
+    tracker_enabled_env = os.getenv("FOLLOWER_TRACKER_ENABLED")
+    tracker_enabled = (
+        tracker_enabled_env.lower() in ("true", "1", "yes")
+        if tracker_enabled_env is not None
+        else bool(tracker_raw.get("enabled", False))
+    )
 
     return AppConfig(
         telegram=TelegramConfig(
@@ -167,5 +188,14 @@ def load_config(config_path: str = "config.yaml", env_file: str = ".env") -> App
         ),
         storage=StorageConfig(
             db_path=os.getenv("DB_PATH", storage_raw.get("db_path", "data/notifyme.db")),
+        ),
+        follower_tracker=FollowerTrackerConfig(
+            enabled=tracker_enabled,
+            target_handle=os.getenv("FOLLOWER_TRACKER_TARGET", tracker_raw.get("target_handle", "vaaisshnav")),
+            schedule_time=os.getenv("FOLLOWER_TRACKER_SCHEDULE_TIME", tracker_raw.get("schedule_time", "09:00")),
+            prep_lead_minutes=int(os.getenv("FOLLOWER_TRACKER_PREP_LEAD", tracker_raw.get("prep_lead_minutes", 40))),
+            min_request_delay_seconds=int(os.getenv("FOLLOWER_MIN_DELAY", tracker_raw.get("min_request_delay_seconds", 10))),
+            max_request_delay_seconds=int(os.getenv("FOLLOWER_MAX_DELAY", tracker_raw.get("max_request_delay_seconds", 20))),
+            send_telegram_digest=bool(tracker_raw.get("send_telegram_digest", True)),
         ),
     )

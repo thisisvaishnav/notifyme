@@ -36,6 +36,116 @@ async function fetchStatus() {
   }
 }
 
+async function fetchFollowerStatus() {
+  try {
+    const res = await fetch("/api/followers/status");
+    if (!res.ok) return;
+    const data = await res.json();
+    updateFollowerUI(data);
+
+    // Also fetch not following back
+    const nfbRes = await fetch("/api/followers/not_following_back");
+    if (nfbRes.ok) {
+      const nfbData = await nfbRes.json();
+      updateNotFollowingBackUI(nfbData);
+    }
+  } catch (err) {
+    console.error("Failed to fetch follower status:", err);
+  }
+}
+
+function updateFollowerUI(data) {
+  const targetHandleEl = document.getElementById("tracker-target-handle");
+  if (targetHandleEl) targetHandleEl.textContent = `@${data.target_handle}`;
+
+  const statusBadge = document.getElementById("tracker-status-badge");
+  const checkBtn = document.getElementById("btn-check-followers-now");
+  const checkBtnText = document.getElementById("btn-check-followers-text");
+
+  if (data.is_auditing) {
+    if (statusBadge) {
+      statusBadge.textContent = "Auditing In Progress (10–20s safe pacing)...";
+      statusBadge.className = "badge badge-warning";
+    }
+    if (checkBtn) checkBtn.disabled = true;
+    if (checkBtnText) checkBtnText.textContent = "Auditing...";
+  } else {
+    if (statusBadge) {
+      statusBadge.textContent = "Safe Browsing (10–20s Pacing)";
+      statusBadge.className = "badge badge-success";
+    }
+    if (checkBtn) checkBtn.disabled = false;
+    if (checkBtnText) checkBtnText.textContent = "Check Followers Now";
+  }
+
+  const latest = data.latest_snapshot;
+  if (latest) {
+    const fCount = document.getElementById("follower-count");
+    if (fCount) fCount.textContent = latest.total_followers;
+
+    const fgCount = document.getElementById("following-count");
+    if (fgCount) fgCount.textContent = latest.total_following;
+
+    const fFooter = document.getElementById("follower-net-footer");
+    if (fFooter) fFooter.textContent = `Recorded at ${latest.recorded_at}`;
+  }
+
+  const schedEl = document.getElementById("follower-schedule-time");
+  if (schedEl) schedEl.textContent = `${data.schedule_time} Daily`;
+
+  const prepFooter = document.getElementById("follower-prep-footer");
+  if (prepFooter) {
+    const parts = (data.schedule_time || "09:00").split(":");
+    let h = parseInt(parts[0], 10);
+    let m = parseInt(parts[1] || "0", 10) - (data.prep_lead_minutes || 40);
+    if (m < 0) {
+      m += 60;
+      h = (h - 1 + 24) % 24;
+    }
+    const pH = h.toString().padStart(2, '0');
+    const pM = m.toString().padStart(2, '0');
+    prepFooter.textContent = `Pre-collection begins at ${pH}:${pM}`;
+  }
+}
+
+function updateNotFollowingBackUI(data) {
+  const nfbCount = document.getElementById("not-following-back-count");
+  if (nfbCount) nfbCount.textContent = data.count || 0;
+
+  const nfbBadge = document.getElementById("nfb-badge");
+  if (nfbBadge) nfbBadge.textContent = `${data.count || 0} Accounts`;
+
+  const tbody = document.getElementById("not-following-back-table-body");
+  if (!tbody) return;
+
+  const list = data.not_following_back || [];
+  if (list.length === 0) {
+    tbody.innerHTML = `
+      <tr>
+        <td colspan="3" style="text-align: center; color: var(--text-dim); padding: 15px;">
+          All accounts you follow are currently following you back!
+        </td>
+      </tr>`;
+    return;
+  }
+
+  tbody.innerHTML = list.slice(0, 50).map(u => `
+    <tr>
+      <td>
+        <a href="https://x.com/${u.screen_name}" target="_blank" style="color: var(--accent-cyan); text-decoration: none; font-weight: 600;">
+          @${escapeHtml(u.screen_name)}
+        </a>
+      </td>
+      <td>${escapeHtml(u.name || u.screen_name)}</td>
+      <td>
+        <a href="https://x.com/${u.screen_name}" target="_blank" class="btn-link" style="color: var(--accent-rose);">
+          Review & Unfollow &rarr;
+        </a>
+      </td>
+    </tr>
+  `).join("");
+}
+
 function updateUI(data) {
   currentStatus.is_paused = data.is_paused;
   currentStatus.status = data.status;
@@ -106,7 +216,7 @@ function updateUI(data) {
   if (tweets.length === 0) {
     feed.innerHTML = `
       <div class="empty-state">
-        <div class="empty-icon">📬</div>
+        <div class="empty-icon">📫</div>
         <h3>No Posts Notified Yet</h3>
         <p>When monitored accounts tweet, new alerts will appear here in real-time.</p>
       </div>`;
@@ -182,6 +292,23 @@ document.getElementById("btn-poll-now").addEventListener("click", async () => {
   }
 });
 
-// Periodic fetch loop (every 3s)
+document.getElementById("btn-check-followers-now").addEventListener("click", async () => {
+  try {
+    const res = await fetch("/api/followers/check_now", { method: "POST" });
+    const data = await res.json();
+    if (data.success) {
+      showToast("Safe follower audit started in background! (10-20s safe pacing)");
+    } else {
+      showToast(data.message || "Audit could not be started", true);
+    }
+    fetchFollowerStatus();
+  } catch (err) {
+    showToast("Trigger failed: " + err, true);
+  }
+});
+
+// Periodic fetch loop
 fetchStatus();
+fetchFollowerStatus();
 setInterval(fetchStatus, 3000);
+setInterval(fetchFollowerStatus, 6000);

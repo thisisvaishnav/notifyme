@@ -1,6 +1,7 @@
 """Unit and integration tests for Daily Follower Tracker."""
 
 import pytest
+from unittest.mock import AsyncMock, MagicMock
 from datetime import datetime, time
 from config import FollowerTrackerConfig, load_config
 from storage import StorageEngine
@@ -17,6 +18,7 @@ from follower_tracker import (
 def temp_storage(tmp_path):
     db_file = tmp_path / "test_follower.db"
     storage = StorageEngine(str(db_file))
+    storage.initialize()
     return storage
 
 
@@ -227,3 +229,73 @@ def test_format_follower_digest():
     assert "@quitter" in message
     assert "https://x.com/quitter" in message
     assert len(message) < 4096
+
+
+@pytest.mark.asyncio
+async def test_run_audit_end_to_end(temp_storage):
+    config = FollowerTrackerConfig(
+        enabled=True,
+        target_handle="vaaisshnav",
+        schedule_time="09:00",
+        prep_lead_minutes=40,
+        min_request_delay_seconds=0,
+        max_request_delay_seconds=0,
+        send_telegram_digest=True,
+    )
+
+    mock_client = AsyncMock()
+    mock_user = MagicMock()
+    mock_user.id = 12345
+    mock_client.get_user_by_screen_name.return_value = mock_user
+
+    user_a = MagicMock()
+    user_a.id = 101
+    user_a.screen_name = "alice"
+    user_a.name = "Alice"
+
+    user_b = MagicMock()
+    user_b.id = 102
+    user_b.screen_name = "bob"
+    user_b.name = "Bob"
+
+    page_1 = [user_a, user_b]
+    mock_client.get_user_followers.return_value = page_1
+    mock_client.get_user_following.return_value = [user_b]
+
+    mock_notifier = AsyncMock()
+
+    engine = FollowerTrackerEngine(
+        config=config,
+        storage=temp_storage,
+        fetcher_client=mock_client,
+        notifier=mock_notifier,
+    )
+
+    # 1. Run first baseline audit
+    diff1 = await engine.run_audit(send_digest_now=True)
+    assert diff1 is not None
+    assert diff1.is_baseline is True
+    assert diff1.total_followers == 2
+    assert diff1.total_following == 1
+    mock_notifier.send_message.assert_called_once()
+    assert "Initial baseline established" in mock_notifier.send_message.call_args[0][0]
+
+    # 2. Run second audit with changes: user_a unfollowed, user_c followed
+    user_c = MagicMock()
+    user_c.id = 103
+    user_c.screen_name = "carol"
+    user_c.name = "Carol"
+
+    mock_client.get_user_followers.return_value = [user_b, user_c]
+    mock_notifier.send_message.reset_mock()
+
+    diff2 = await engine.run_audit(send_digest_now=True)
+    assert diff2 is not None
+    assert diff2.is_baseline is False
+    assert len(diff2.new_followers) == 1
+    assert diff2.new_followers[0].screen_name == "carol"
+    assert len(diff2.unfollowers) == 1
+    assert diff2.unfollowers[0].screen_name == "alice"
+    mock_notifier.send_message.assert_called_once()
+    assert "@carol" in mock_notifier.send_message.call_args[0][0]
+    assert "@alice" in mock_notifier.send_message.call_args[0][0]
