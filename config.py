@@ -70,6 +70,7 @@ class AlertConfig:
 @dataclass
 class WebConfig:
     """Desktop Web UI server configuration."""
+    enabled: bool = True
     host: str = "127.0.0.1"
     port: int = 8080
 
@@ -160,6 +161,7 @@ def load_config(config_path: str = "config.yaml", env_file: str = ".env") -> App
             alert_cooldown_minutes=int(alerts_raw.get("alert_cooldown_minutes", 30)),
         ),
         web=WebConfig(
+            enabled=bool(web_raw.get("enabled", True)),
             host=os.getenv("WEB_HOST", web_raw.get("host", "127.0.0.1")),
             port=int(os.getenv("WEB_PORT", web_raw.get("port", 8080))),
         ),
