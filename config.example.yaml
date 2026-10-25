@@ -1,14 +1,12 @@
-# X Account Monitor Configuration
-# Non-secret options live here. Sensitive secrets can be loaded from .env
+# Example configuration file for NotifyMe
+# Copy to config.yaml and edit values as needed.
 
 telegram:
-  # Can be left blank if TELEGRAM_BOT_TOKEN and TELEGRAM_CHAT_ID are set in .env
   bot_token: ""
   chat_id: ""
   alert_chat_id: ""
 
 x_account:
-  # Credentials can be loaded from .env
   username: ""
   email: ""
   password: ""
@@ -17,8 +15,8 @@ x_account:
   cookies_path: "data/cookies.json"
 
 poll:
-  # Poll interval in seconds (default: 60s)
-  interval_seconds: 60
+  # Poll interval in seconds (default: 180s = 3 minutes)
+  interval_seconds: 180
   # Random jitter added to sleep time to appear more natural (0 to 10s)
   jitter_max_seconds: 10
 
@@ -28,37 +26,26 @@ filters:
   include_retweets: false
   include_quotes: false
 
-  # Optional global keyword allow-list (if non-empty, tweets MUST contain at least one keyword)
+  # Keywords to filter (case-insensitive substring matches)
   keyword_allowlist: []
-    # - "bitcoin"
-    # - "ethereum"
-
-  # Optional global keyword block-list (tweets containing any of these words are skipped)
   keyword_blocklist: []
-    # - "giveaway"
-    # - "airdrop"
 
-  # Per-account overrides by handle (without @)
+  # Per-account filter overrides
+  # Handles should be lowercase without '@'
   account_overrides: {}
-    # elonmusk:
-    #   include_retweets: true
-    #   include_quotes: true
-    #   keyword_allowlist: ["starship", "spacex", "tesla"]
 
 alerts:
-  # Dispatch Telegram alert if this many consecutive failures occur
+  # Consecutive errors before sending alert
   max_consecutive_failures: 5
-  # Dispatch warning if no successful poll occurred within this duration (minutes)
+  # Alert if no successful polls in this many minutes
   inactivity_alert_minutes: 10
-  # Rate limit cooldown between repeated alert types to prevent notification spam (minutes)
+  # Minimum minutes between repeated alerts of the same type
   alert_cooldown_minutes: 30
 
 web:
-  # Embedded local HTML/CSS desktop dashboard
   enabled: true
   host: "127.0.0.1"
   port: 8080
 
 storage:
-  # Persistent SQLite database file for deduplication and telemetry
-  db_path: "data/monitor.db"
+  db_path: "data/notifyme.db"

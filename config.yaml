@@ -15,7 +15,7 @@ x_account:
   cookies_path: "data/cookies.json"
 
 poll:
-  interval_seconds: 60
+  interval_seconds: 180 # 3 minutes
   jitter_max_seconds: 10
 
 filters:

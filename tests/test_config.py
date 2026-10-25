@@ -72,3 +72,14 @@ X_LIST_ID=11223344
     assert cfg.alerts.inactivity_alert_minutes == 15
     assert cfg.web.port == 9090
     assert cfg.storage.db_path == str(tmp_path / "custom.db")
+
+
+def test_load_config_default_poll_interval(tmp_path):
+    empty_config = tmp_path / "empty.yaml"
+    empty_env = tmp_path / "empty.env"
+    empty_config.write_text("{}", encoding="utf-8")
+    empty_env.write_text("", encoding="utf-8")
+
+    cfg = load_config(config_path=str(empty_config), env_file=str(empty_env))
+    # Verified default is 180 seconds (3 minutes)
+    assert cfg.poll.interval_seconds == 180

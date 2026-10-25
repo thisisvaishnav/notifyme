@@ -80,7 +80,12 @@ function updateUI(data) {
 
   document.getElementById("metric-last-seen-id").textContent = `Last ID: ${stats.last_seen_id || '--'}`;
   document.getElementById("metric-list-id").textContent = data.list_id || "Not Configured";
-  document.getElementById("metric-interval-footer").textContent = `Every ${data.poll_interval || 60}s + Jitter`;
+  
+  const intervalSec = data.poll_interval || 180;
+  const intervalDisplay = intervalSec >= 60 && intervalSec % 60 === 0 
+    ? `${intervalSec / 60}m (${intervalSec}s)` 
+    : `${intervalSec}s`;
+  document.getElementById("metric-interval-footer").textContent = `Every ${intervalDisplay} + Jitter`;
 
   // 3. Rules
   const f = data.filter_settings || {};
@@ -101,7 +106,7 @@ function updateUI(data) {
   if (tweets.length === 0) {
     feed.innerHTML = `
       <div class="empty-state">
-        <div class="empty-icon">📭</div>
+        <div class="empty-icon">📬</div>
         <h3>No Posts Notified Yet</h3>
         <p>When monitored accounts tweet, new alerts will appear here in real-time.</p>
       </div>`;

@@ -33,8 +33,8 @@ class XAccountConfig:
 
 @dataclass
 class PollConfig:
-    """Polling interval and jitter timing."""
-    interval_seconds: int = 60
+    """Polling interval and jitter timing (default: 3 minutes / 180 seconds)."""
+    interval_seconds: int = 180
     jitter_max_seconds: int = 10
 
 
@@ -144,7 +144,7 @@ def load_config(config_path: str = "config.yaml", env_file: str = ".env") -> App
             ct0=os.getenv("X_CT0", x_raw.get("ct0", "")),
         ),
         poll=PollConfig(
-            interval_seconds=int(os.getenv("POLL_INTERVAL_SECONDS", poll_raw.get("interval_seconds", 60))),
+            interval_seconds=int(os.getenv("POLL_INTERVAL_SECONDS", poll_raw.get("interval_seconds", 180))),
             jitter_max_seconds=int(os.getenv("POLL_JITTER_MAX_SECONDS", poll_raw.get("jitter_max_seconds", 10))),
         ),
         filters=FilterConfig(
