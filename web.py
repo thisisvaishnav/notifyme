@@ -101,7 +101,7 @@ class WebDashboard:
         return web.json_response({"success": True, "message": "Poll triggered"})
 
     async def handle_api_follower_status(self, request: web.Request) -> web.Response:
-        """Return current follower status and recent snapshots."""
+        """Return current follower status and recent snapshots with computed mutuals."""
         target_handle = getattr(self.engine.config.follower_tracker, "target_handle", "vaaisshnav")
         latest = self.engine.storage.get_latest_follower_snapshot(target_handle)
         recent = self.engine.storage.get_recent_follower_snapshots(target_handle, limit=5)
@@ -109,11 +109,20 @@ class WebDashboard:
         if hasattr(self.engine, "follower_tracker") and self.engine.follower_tracker:
             is_auditing = self.engine.follower_tracker._is_running_audit
 
+        not_back_count = 0
+        mutual_count = 0
+        if latest:
+            not_back = self.engine.storage.get_not_following_back(target_handle)
+            not_back_count = len(not_back)
+            mutual_count = max(0, latest["total_following"] - not_back_count)
+
         return web.json_response({
             "target_handle": target_handle,
             "is_auditing": is_auditing,
             "latest_snapshot": latest,
             "recent_snapshots": recent,
+            "mutual_count": mutual_count,
+            "not_following_back_count": not_back_count,
             "schedule_time": getattr(self.engine.config.follower_tracker, "schedule_time", "09:00"),
             "prep_lead_minutes": getattr(self.engine.config.follower_tracker, "prep_lead_minutes", 40),
         })

@@ -3,251 +3,401 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>NotifyMe • X Account Monitor</title>
+  <title>NotifyMe • X Monitor & Follower Studio</title>
   <link rel="stylesheet" href="/static/style.css">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <div class="app-layout">
-    <!-- Top Header -->
+  <div class="app-shell">
+    <!-- Top Command Header -->
     <header class="header">
       <div class="brand">
         <div class="brand-icon">
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M22 4s-.7 2.1-2 3.4c1.6 10-9.4 17.3-18 11.6 2.2.1 4.4-.6 6-2C3 15.5.5 9.6 3 5c2.2 2.6 5.6 4.1 9 4-.9-4.2 4-6.6 7-3.8 1.1 0 3-1.2 3-1.2z"></path>
           </svg>
         </div>
         <div class="brand-info">
-          <h1>NotifyMe</h1>
-          <p class="tagline">X List Monitor • Telegram Dispatcher</p>
+          <div class="brand-title-row">
+            <h1>NotifyMe</h1>
+            <span class="version-tag">PRO</span>
+          </div>
+          <p class="tagline">X Intelligence & Follower Management</p>
         </div>
       </div>
 
-      <div class="header-center">
+      <!-- Navigation Tabs -->
+      <nav class="nav-tabs" role="tablist">
+        <button class="nav-tab active" data-tab="tab-overview" role="tab">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9"></rect><rect x="14" y="3" width="7" height="5"></rect><rect x="14" y="12" width="7" height="9"></rect><rect x="3" y="16" width="7" height="5"></rect></svg>
+          <span>Overview</span>
+        </button>
+        <button class="nav-tab" data-tab="tab-followers" role="tab">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          <span>Follower Studio</span>
+          <span class="tab-badge" id="tab-nfb-badge">571</span>
+        </button>
+        <button class="nav-tab" data-tab="tab-telemetry" role="tab">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"></polyline></svg>
+          <span>Diagnostics</span>
+        </button>
+      </nav>
+
+      <!-- Engine State Controls -->
+      <div class="header-controls">
         <div id="status-pill" class="status-pill status-running">
           <span class="status-dot"></span>
-          <span id="status-text">INITIALIZING</span>
+          <span id="status-text">RUNNING</span>
         </div>
-        <div class="meta-tag">
-          <span class="meta-label">Uptime:</span>
-          <span id="uptime-text" class="mono">--:--:--</span>
+        <div class="action-buttons">
+          <button id="btn-toggle-pause" class="btn btn-secondary btn-sm" title="Pause or Resume Monitoring">
+            <span class="btn-icon">⏸</span>
+            <span id="btn-pause-text">Pause</span>
+          </button>
+          <button id="btn-poll-now" class="btn btn-primary btn-sm" title="Poll X List Immediately">
+            <span class="btn-icon">⚡</span>
+            <span>Poll Now</span>
+          </button>
         </div>
-      </div>
-
-      <div class="header-actions">
-        <button id="btn-toggle-pause" class="btn btn-secondary">
-          <span class="btn-icon">⏸</span>
-          <span id="btn-pause-text">Pause</span>
-        </button>
-        <button id="btn-poll-now" class="btn btn-primary">
-          <span class="btn-icon">⚡</span>
-          <span>Poll Now</span>
-        </button>
       </div>
     </header>
 
-    <!-- Main Content Area -->
-    <main class="main-content">
-      <!-- Metric Cards Grid -->
-      <section class="metrics-grid">
-        <div class="metric-card">
-          <div class="metric-header">
-            <span class="metric-title">Tweets Notified</span>
-            <span class="metric-icon">📢</span>
+    <!-- Main Container with Tab Views -->
+    <main class="main-body">
+
+      <!-- ================= TAB 1: EXECUTIVE OVERVIEW ================= -->
+      <section id="tab-overview" class="tab-pane active">
+        <!-- High-Impact KPI Row (4 Consolidated Cards) -->
+        <div class="kpi-grid">
+          <!-- Card 1: Audience & Reciprocity -->
+          <div class="kpi-card kpi-card-cyan">
+            <div class="kpi-top">
+              <div class="kpi-title-group">
+                <span class="kpi-label">Audience Health</span>
+                <span class="kpi-target mono">@vaaisshnav</span>
+              </div>
+              <div class="kpi-icon-wrap cyan">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+              </div>
+            </div>
+            <div class="kpi-metric-row">
+              <span class="kpi-value mono" id="kpi-followers">320</span>
+              <span class="kpi-delta-pill positive" id="kpi-net-delta">Baseline set</span>
+            </div>
+            <!-- Reciprocity Meter -->
+            <div class="reciprocity-meter-wrap">
+              <div class="reciprocity-labels">
+                <span>Mutuals: <b id="kpi-mutuals-text">87</b> (<span id="kpi-mutuals-pct">13.2%</span>)</span>
+                <span>Following: <b id="kpi-following-text">658</b></span>
+              </div>
+              <div class="reciprocity-bar-track">
+                <div class="reciprocity-bar-fill" id="kpi-reciprocity-fill" style="width: 13.2%;"></div>
+              </div>
+            </div>
           </div>
-          <div class="metric-value mono" id="metric-notified">0</div>
-          <div class="metric-footer">Forwarded to Telegram</div>
+
+          <!-- Card 2: Unreciprocated Cleanup Queue -->
+          <div class="kpi-card kpi-card-amber">
+            <div class="kpi-top">
+              <div class="kpi-title-group">
+                <span class="kpi-label">Unreciprocated Follows</span>
+                <span class="kpi-sub">Attention without follow-back</span>
+              </div>
+              <div class="kpi-icon-wrap amber">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+              </div>
+            </div>
+            <div class="kpi-metric-row">
+              <span class="kpi-value mono text-amber" id="kpi-unreciprocated">571</span>
+              <button class="kpi-link-btn" id="btn-goto-studio">Triage in Studio →</button>
+            </div>
+            <p class="kpi-footer-note">Accounts you follow who do not follow back. Review & clean up with 1-click links.</p>
+          </div>
+
+          <!-- Card 3: Monitored X Stream -->
+          <div class="kpi-card kpi-card-emerald">
+            <div class="kpi-top">
+              <div class="kpi-title-group">
+                <span class="kpi-label">Telegram Tweet Feed</span>
+                <span class="kpi-sub">Alpha Trackers (18 accounts)</span>
+              </div>
+              <div class="kpi-icon-wrap emerald">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 2L11 13"></path><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+              </div>
+            </div>
+            <div class="kpi-metric-row">
+              <span class="kpi-value mono" id="kpi-tweets-notified">0</span>
+              <span class="badge badge-emerald">Real-time</span>
+            </div>
+            <div class="kpi-footer-status">
+              <span class="pulse-indicator"></span>
+              <span>Polling every 3m (180s) + jitter</span>
+            </div>
+          </div>
+
+          <!-- Card 4: Automated Schedule -->
+          <div class="kpi-card kpi-card-purple">
+            <div class="kpi-top">
+              <div class="kpi-title-group">
+                <span class="kpi-label">Daily Follower Audit</span>
+                <span class="kpi-sub">Anti-ban safe pacing active</span>
+              </div>
+              <div class="kpi-icon-wrap purple">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+              </div>
+            </div>
+            <div class="kpi-metric-row">
+              <span class="kpi-value mono" id="kpi-schedule-time">09:00 AM</span>
+              <button id="btn-quick-check-followers" class="btn btn-xs btn-outline">
+                <span id="quick-check-text">Audit Now</span>
+              </button>
+            </div>
+            <p class="kpi-footer-note" id="kpi-prep-time">Pre-collection runs at 08:20 AM (10–20s safe delays)</p>
+          </div>
         </div>
 
-        <div class="metric-card">
-          <div class="metric-header">
-            <span class="metric-title">Total Poll Cycles</span>
-            <span class="metric-icon">🔄</span>
-          </div>
-          <div class="metric-value mono" id="metric-polls">0</div>
-          <div class="metric-footer" id="metric-polls-footer">0 errors recorded</div>
-        </div>
+        <!-- Overview Main Split Layout -->
+        <div class="dashboard-split">
+          <!-- Left: Recent Dispatched Tweets -->
+          <section class="card feed-section">
+            <div class="card-header">
+              <div class="card-title-group">
+                <h2>Recent Dispatched Tweets</h2>
+                <span class="badge" id="tweet-count-badge">0 Posts</span>
+              </div>
+              <span class="live-pill"><span class="pulse-indicator"></span> Listening to X</span>
+            </div>
+            <div class="tweets-stream" id="tweets-feed">
+              <div class="empty-state">
+                <div class="empty-icon">📬</div>
+                <h3>No Tweets Dispatched Yet</h3>
+                <p>When the 18 alpha accounts post original tweets, they will appear here and alert Telegram in real time.</p>
+              </div>
+            </div>
+          </section>
 
-        <div class="metric-card">
-          <div class="metric-header">
-            <span class="metric-title">Last Poll Status</span>
-            <span class="metric-icon">⏱</span>
-          </div>
-          <div class="metric-value metric-value-sm" id="metric-last-poll">Pending</div>
-          <div class="metric-footer mono" id="metric-last-seen-id">Baseline: --</div>
-        </div>
+          <!-- Right: Snapshot History & Quick Triage Widget -->
+          <aside class="sidebar-overview">
+            <!-- Quick Unfollow Preview -->
+            <div class="card">
+              <div class="card-header">
+                <div class="card-title-group">
+                  <h3>Unreciprocated Queue</h3>
+                  <span class="badge badge-amber" id="preview-nfb-count">571</span>
+                </div>
+                <button class="link-action" id="btn-view-all-nfb">View All →</button>
+              </div>
+              <p class="section-hint">Accounts you follow who haven't followed back:</p>
+              <div class="mini-nfb-list" id="mini-nfb-list">
+                <!-- Mini items injected by JS -->
+                <div class="loading-spinner-wrap"><div class="spinner"></div></div>
+              </div>
+            </div>
 
-        <div class="metric-card">
-          <div class="metric-header">
-            <span class="metric-title">Monitored X List</span>
-            <span class="metric-icon">📋</span>
-          </div>
-          <div class="metric-value mono metric-value-sm" id="metric-list-id">--</div>
-          <div class="metric-footer" id="metric-interval-footer">Every 3m (180s) + Jitter</div>
+            <!-- Follower Snapshot History -->
+            <div class="card">
+              <div class="card-header">
+                <h3>Audit History</h3>
+                <span class="badge badge-subtle">Last Snapshots</span>
+              </div>
+              <div class="snapshot-list" id="snapshot-history-list">
+                <div class="snapshot-item">
+                  <div class="snap-meta">
+                    <span class="snap-time">Latest Baseline</span>
+                    <span class="snap-counts mono">320 F / 658 Fg</span>
+                  </div>
+                  <span class="badge badge-emerald">Baseline</span>
+                </div>
+              </div>
+            </div>
+          </aside>
         </div>
       </section>
 
-      <!-- Follower & Unfollower Tracker Section -->
-      <section class="card follower-card" style="margin-bottom: 24px;">
-        <div class="card-header">
-          <div class="card-title-group">
-            <h2>👥 Daily Follower & Unfollower Tracker (<span id="tracker-target-handle">@vaaisshnav</span>)</h2>
-            <span class="badge badge-success" id="tracker-status-badge">Safe Browsing (10–20s Pacing)</span>
+      <!-- ================= TAB 2: FOLLOWER STUDIO (UNFOLLOW TRIAGE) ================= -->
+      <section id="tab-followers" class="tab-pane">
+        <div class="studio-header-card">
+          <div class="studio-meta">
+            <div>
+              <span class="studio-super">AUDIENCE MANAGEMENT STUDIO</span>
+              <h2>Unreciprocated Follows Triage</h2>
+            </div>
+            <p class="studio-desc">
+              Accounts followed by <b>@vaaisshnav</b> that do not follow back. Click to quickly review and unfollow on X, or mark as <b>Keep / Whitelist</b> so they are skipped in future cleanups.
+            </p>
           </div>
-          <div class="header-actions">
-            <button id="btn-check-followers-now" class="btn btn-secondary">
-              <span class="btn-icon">🔍</span>
-              <span id="btn-check-followers-text">Check Followers Now</span>
+          <div class="studio-actions">
+            <button id="btn-studio-check-now" class="btn btn-secondary">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <span id="btn-studio-check-text">Run Safe Audit Now</span>
             </button>
           </div>
         </div>
 
-        <!-- Follower Metrics Sub-Grid -->
-        <div class="metrics-grid" style="margin-bottom: 20px;">
-          <div class="metric-card">
-            <div class="metric-header">
-              <span class="metric-title">Total Followers</span>
-              <span class="metric-icon">👥</span>
+        <!-- Triage Studio Card -->
+        <div class="card studio-main-card">
+          <!-- Toolbar: Search, Filters, Sorting -->
+          <div class="studio-toolbar">
+            <div class="search-input-wrap">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+              <input type="text" id="studio-search-input" placeholder="Search by handle or name..." autocomplete="off">
+              <button id="studio-search-clear" class="clear-btn" title="Clear search">✕</button>
             </div>
-            <div class="metric-value mono" id="follower-count">--</div>
-            <div class="metric-footer" id="follower-net-footer">Baseline checking...</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-header">
-              <span class="metric-title">Total Following</span>
-              <span class="metric-icon">📡</span>
-            </div>
-            <div class="metric-value mono" id="following-count">--</div>
-            <div class="metric-footer">Target accounts followed</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-header">
-              <span class="metric-title">Not Following Back</span>
-              <span class="metric-icon">⚠️</span>
-            </div>
-            <div class="metric-value mono" id="not-following-back-count">--</div>
-            <div class="metric-footer">Unreciprocated follows</div>
-          </div>
-          <div class="metric-card">
-            <div class="metric-header">
-              <span class="metric-title">Daily Schedule</span>
-              <span class="metric-icon">⏰</span>
-            </div>
-            <div class="metric-value metric-value-sm mono" id="follower-schedule-time">09:00 AM</div>
-            <div class="metric-footer" id="follower-prep-footer">Pre-collection begins at 08:20 AM</div>
-          </div>
-        </div>
 
-        <!-- Not Following Back Accounts Table -->
-        <div class="card-header" style="padding-top: 0; padding-left: 0; padding-right: 0;">
-          <div class="card-title-group">
-            <h3>Accounts You Follow Who Don't Follow Back</h3>
-            <span class="badge" id="nfb-badge">0 Accounts</span>
+            <div class="filter-chips">
+              <button class="chip active" data-filter="all">All (<span id="filter-count-all">571</span>)</button>
+              <button class="chip" data-filter="pending">To Unfollow (<span id="filter-count-pending">571</span>)</button>
+              <button class="chip" data-filter="kept">Kept / Whitelist (<span id="filter-count-kept">0</span>)</button>
+            </div>
+
+            <div class="toolbar-right">
+              <select id="studio-sort-select" class="custom-select">
+                <option value="alpha-asc">Alphabetical (A → Z)</option>
+                <option value="alpha-desc">Alphabetical (Z → A)</option>
+              </select>
+              <select id="studio-per-page-select" class="custom-select">
+                <option value="25">25 per page</option>
+                <option value="50" selected>50 per page</option>
+                <option value="100">100 per page</option>
+              </select>
+            </div>
           </div>
-          <span style="font-size: 12px; color: var(--text-dim);">Click account to review & unfollow on X</span>
-        </div>
-        <div class="table-container" style="max-height: 280px; overflow-y: auto;">
-          <table class="telemetry-table">
-            <thead>
-              <tr>
-                <th>Username</th>
-                <th>Name</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody id="not-following-back-table-body">
-              <tr>
-                <td colspan="3" style="text-align: center; color: var(--text-dim); padding: 15px;">
-                  No audit data yet. Click "Check Followers Now" or wait for scheduled audit.
-                </td>
-              </tr>
-            </tbody>
-          </table>
+
+          <!-- Account Table -->
+          <div class="table-container studio-table-container">
+            <table class="studio-table">
+              <thead>
+                <tr>
+                  <th style="width: 44px;">#</th>
+                  <th>Account</th>
+                  <th>Relationship</th>
+                  <th>Status</th>
+                  <th style="text-align: right;">Action</th>
+                </tr>
+              </thead>
+              <tbody id="studio-table-body">
+                <tr>
+                  <td colspan="5" style="text-align: center; padding: 40px; color: var(--text-dim);">
+                    <div class="spinner" style="margin: 0 auto 12px;"></div>
+                    Loading accounts...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <!-- Pagination Bar -->
+          <div class="pagination-bar">
+            <div class="pagination-info" id="pagination-info">
+              Showing <b>1–50</b> of <b>571</b> accounts
+            </div>
+            <div class="pagination-controls">
+              <button id="btn-page-prev" class="btn btn-xs btn-outline" disabled>‹ Prev</button>
+              <span class="page-current mono" id="page-current-indicator">Page 1 of 12</span>
+              <button id="btn-page-next" class="btn btn-xs btn-outline">Next ›</button>
+            </div>
+          </div>
         </div>
       </section>
 
-      <!-- Split Layout: Feed & Diagnostics -->
-      <div class="columns-grid">
-        <!-- Left: Recent Tweets Feed -->
-        <section class="card feed-card">
-          <div class="card-header">
-            <div class="card-title-group">
-              <h2>Recent Telegram Deliveries</h2>
-              <span class="badge" id="tweet-count-badge">0 Posts</span>
-            </div>
-            <span class="refresh-indicator" id="live-refresh-text">Live auto-refresh</span>
-          </div>
-
-          <div class="tweets-feed" id="tweets-feed">
-            <div class="empty-state">
-              <div class="empty-icon">📫</div>
-              <h3>No Posts Notified Yet</h3>
-              <p>When monitored accounts tweet, new alerts will appear here in real-time.</p>
-            </div>
-          </div>
-        </section>
-
-        <!-- Right: Telemetry & Config & Recent Poll History -->
-        <aside class="sidebar-column">
-          <!-- Active Filter Rules Card -->
+      <!-- ================= TAB 3: DIAGNOSTICS & TELEMETRY ================= -->
+      <section id="tab-telemetry" class="tab-pane">
+        <div class="telemetry-grid">
+          <!-- Active Rules Engine -->
           <div class="card">
             <div class="card-header">
-              <h2>Active Rules</h2>
-              <span class="badge badge-success">Optimized</span>
+              <div class="card-title-group">
+                <h3>Filter Engine Rules</h3>
+                <span class="badge badge-emerald">Active</span>
+              </div>
             </div>
             <div class="rules-list">
-              <div class="rule-item">
-                <span class="rule-name">Original Posts</span>
-                <span class="rule-status enabled">Included</span>
+              <div class="rule-row">
+                <span class="rule-title">Original Tweets</span>
+                <span class="rule-badge enabled">Dispatched</span>
               </div>
-              <div class="rule-item">
-                <span class="rule-name">Retweets</span>
-                <span class="rule-status disabled" id="rule-retweets">Filtered</span>
+              <div class="rule-row">
+                <span class="rule-title">Retweets</span>
+                <span class="rule-badge disabled" id="rule-diag-rt">Filtered Out</span>
               </div>
-              <div class="rule-item">
-                <span class="rule-name">Replies</span>
-                <span class="rule-status disabled" id="rule-replies">Filtered</span>
+              <div class="rule-row">
+                <span class="rule-title">Replies</span>
+                <span class="rule-badge disabled" id="rule-diag-reply">Filtered Out</span>
               </div>
-              <div class="rule-item">
-                <span class="rule-name">Quote Tweets</span>
-                <span class="rule-status disabled" id="rule-quotes">Filtered</span>
+              <div class="rule-row">
+                <span class="rule-title">Quote Tweets</span>
+                <span class="rule-badge disabled" id="rule-diag-quotes">Filtered Out</span>
               </div>
             </div>
           </div>
 
-          <!-- Poll History Log Card -->
-          <div class="card poll-history-card">
+          <!-- System Health Specs -->
+          <div class="card">
             <div class="card-header">
-              <h2>Recent Poll Telemetry</h2>
-              <span class="mono" style="font-size: 11px; color: var(--text-dim);">Last 10 Cycles</span>
+              <h3>System Specs & Pacing</h3>
+              <span class="badge mono" id="diag-uptime">Uptime: --</span>
             </div>
-            <div class="table-container">
-              <table class="telemetry-table">
-                <thead>
-                  <tr>
-                    <th>Time</th>
-                    <th>Status</th>
-                    <th>Found</th>
-                    <th>Alerted</th>
-                  </tr>
-                </thead>
-                <tbody id="polls-table-body">
-                  <tr>
-                    <td colspan="4" style="text-align: center; color: var(--text-dim); padding: 20px;">
-                      Waiting for initial poll cycle...
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
+            <div class="specs-list">
+              <div class="spec-row">
+                <span class="spec-label">X List Monitored:</span>
+                <span class="spec-value mono" id="diag-list-id">2114274656857588014</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-label">Poll Frequency:</span>
+                <span class="spec-value mono">180s (3m) + Jitter</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-label">Follower Scrape Pacing:</span>
+                <span class="spec-value mono">10–20s safe delays</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-label">Consecutive Failures:</span>
+                <span class="spec-value mono" id="diag-consec-fails">0</span>
+              </div>
+              <div class="spec-row">
+                <span class="spec-label">Database Storage:</span>
+                <span class="spec-value mono">data/monitor.db (SQLite)</span>
+              </div>
             </div>
           </div>
-        </aside>
-      </div>
+        </div>
+
+        <!-- Recent Poll History Table -->
+        <div class="card" style="margin-top: 20px;">
+          <div class="card-header">
+            <div class="card-title-group">
+              <h3>Recent Polling Telemetry Log</h3>
+              <span class="badge mono" style="font-size: 11px;">Last 15 Cycles</span>
+            </div>
+          </div>
+          <div class="table-container">
+            <table class="studio-table">
+              <thead>
+                <tr>
+                  <th>Cycle Time</th>
+                  <th>Status</th>
+                  <th>Tweets Found</th>
+                  <th>Alerts Sent</th>
+                  <th>Diagnostics</th>
+                </tr>
+              </thead>
+              <tbody id="diag-polls-table-body">
+                <tr>
+                  <td colspan="5" style="text-align: center; padding: 25px; color: var(--text-dim);">
+                    Loading telemetry cycles...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
     </main>
 
-    <!-- Toast Notification Container -->
+    <!-- Toast Notification Overlay -->
     <div id="toast-container" class="toast-container"></div>
   </div>
 
