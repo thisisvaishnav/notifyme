@@ -9,7 +9,7 @@ Below is the complete, exact checklist of the 4 things you must manually configu
 | # | Item | What you need to do | Output Needed |
 |---|---|---|---|
 | **1** | **Telegram Bot** | Create bot with `@BotFather` & get your Chat ID | `TELEGRAM_BOT_TOKEN`, `TELEGRAM_CHAT_ID` |
-| **2** | **X Data Account** | Create / prepare a dedicated throwaway X account | `X_USERNAME`, `X_EMAIL`, `X_PASSWORD` |
+| **2** | **X Data Account & Cookies** | Prepare throwaway X account & run `python setup_cookies.py` | `data/cookies.json` |
 | **3** | **Private X List** | Create a private list on X with tracked accounts | `X_LIST_ID` (from list URL) |
 | **4** | **Configuration Files** | Populate `.env` and review `config.yaml` | `.env` file created |
 
@@ -28,21 +28,22 @@ Below is the complete, exact checklist of the 4 things you must manually configu
      ```
 
 2. **Obtain your personal Telegram Chat ID:**
-   - Message `@userinfobot` on Telegram and send `/start`.
+   - Message `@userinfobot` on Telegram and send `/start` .
    - Copy the numerical **Id** shown (e.g. `123456789`).
    - **Crucial Step:** Open a direct message with your **new bot** and press **START** (or send `/start`). If you do not start the bot first, Telegram will block the bot from sending messages to you with a `403 Forbidden` error.
 
 ---
 
-### Step 2: Dedicated X (Twitter) Data Account
+### Step 2: Dedicated X (Twitter) Data Account & Cookies Setup
 
 1. Do **NOT** use your personal or main X account. Automated polling violates X terms of service and throwaways can be challenged or suspended.
 2. Sign up or use a separate throwaway account.
-3. Note down:
-   - Account username (e.g. `data_tracker_99`)
-   - Associated email (used if X asks for verification)
-   - Password
-   - If 2FA is active, have the TOTP secret key handy (optional).
+3. **Save Session Cookies (Recommended & Most Reliable):**
+   X's web client frequently updates its unauthenticated scripts, breaking programmatic username/password logins with `Couldn't get KEY_BYTE indices`. Supplying browser session cookies bypasses this entirely:
+   ```bash
+   python setup_cookies.py
+   ```
+   This interactive script asks for your `auth_token` and `ct0` cookies (copied from browser DevTools -> Application -> Cookies -> `https://x.com`) and writes them directly to `data/cookies.json`.
 
 ---
 
@@ -58,28 +59,26 @@ Below is the complete, exact checklist of the 4 things you must manually configu
    ```
    https://x.com/i/lists/1849123456789012345
    ```
-8. The long number at the end is your `X_LIST_ID`:
-   ```
-   X_LIST_ID=1849123456789012345
-   ```
+   The digits at the end (`1849123456789012345`) are your `X_LIST_ID`.
 
 ---
 
 ### Step 4: Populate `.env`
 
-In your project directory (`/Users/bombermac/notifyme`), copy the example file:
+Copy `.env.example` to `.env`:
 ```bash
 cp .env.example .env
 ```
-Open `.env` in any text editor and fill in your values:
+
+Open `.env` in an editor and enter your values:
 ```env
 TELEGRAM_BOT_TOKEN=7123456789:ABCdefGhIJKlmNoPQRsTUVwxyZ
 TELEGRAM_CHAT_ID=123456789
 TELEGRAM_ALERT_CHAT_ID=123456789
 
-X_USERNAME=your_data_account_handle
-X_EMAIL=your_data_email@domain.com
-X_PASSWORD=YourAccountPassword
+X_USERNAME=throwaway_handle
+X_EMAIL=throwaway_email@example.com
+X_PASSWORD=throwaway_password
 X_TOTP_SECRET=
 
 X_LIST_ID=1849123456789012345
@@ -88,15 +87,11 @@ X_COOKIES_PATH=data/cookies.json
 
 ---
 
-### Step 5: Launch & Open Desktop Dashboard
+### Step 5: Start NotifyMe
 
-Once `.env` is saved, launch the application:
+With your virtual environment activated:
 ```bash
-source .venv/bin/activate
 python main.py
 ```
-Open your browser and navigate to:
-```
-http://127.0.0.1:8080
-```
-You will see the live desktop dashboard showing status, uptime, recent deliveries, and controls.
+
+Then open `http://127.0.0.1:8080` in your browser to view the live dashboard!
