@@ -1,3 +1,14 @@
+---
+title: NotifyMe X Monitor
+emoji: 🚀
+colorFrom: blue
+colorTo: indigo
+sdk: gradio
+sdk_version: 4.44.0
+app_file: app.py
+pinned: false
+---
+
 # NotifyMe • X Account Monitor with Telegram Alerts
 
 > A robust, 24/7 autonomous monitoring service that polls a private X (Twitter) List and delivers new posts to Telegram in near real-time (~60 seconds), complete with deduplication, smart filtering, exponential backoff, and an embedded local HTML/CSS desktop dashboard.
