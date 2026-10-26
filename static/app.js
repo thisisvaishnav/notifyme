@@ -491,7 +491,7 @@ class DashboardApp {
       .map((s, idx) => `
         <div class="snapshot-item">
           <div class="snap-meta">
-            <span class="snap-time">${this.escape(s.recorded_at)}</span>
+            <span class="snap-time">${this.escape(this.formatIST(s.recorded_at))}</span>
             <span class="snap-counts mono">${s.total_followers} Followers • ${s.total_following} Following</span>
           </div>
           <span class="badge ${idx === 0 ? "badge-emerald" : "badge-subtle"}">
@@ -525,7 +525,7 @@ class DashboardApp {
                 <div class="author-avatar">${this.escape(initial)}</div>
                 <a href="https://x.com/${this.escape(t.author_handle)}" target="_blank" class="author-handle">@${this.escape(t.author_handle)}</a>
               </div>
-              <span class="tweet-time mono">${this.escape(t.notified_at || t.created_at || "")}</span>
+              <span class="tweet-time mono">${this.escape(this.formatIST(t.notified_at || t.created_at))}</span>
             </div>
             <div class="tweet-body">${this.escape(t.text)}</div>
             <div class="tweet-footer">
@@ -552,7 +552,7 @@ class DashboardApp {
         const statusClass = p.status === "success" ? "badge-emerald" : "badge-amber";
         return `
           <tr>
-            <td class="mono" style="font-size: 12px;">${this.escape(p.polled_at)}</td>
+            <td class="mono" style="font-size: 12px;">${this.escape(this.formatIST(p.polled_at || p.timestamp))}</td>
             <td><span class="badge ${statusClass}">${this.escape(p.status.toUpperCase())}</span></td>
             <td class="mono">${p.tweets_found}</td>
             <td class="mono">${p.tweets_notified}</td>
@@ -610,6 +610,32 @@ class DashboardApp {
       }
     } catch (err) {
       this.showToast("Failed to trigger audit", "error");
+    }
+  }
+
+  formatIST(raw) {
+    if (!raw) return "";
+    try {
+      let dateObj;
+      if (raw.includes("UTC") || raw.endsWith("Z")) {
+        dateObj = new Date(raw);
+      } else if (/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}$/.test(raw)) {
+        dateObj = new Date(raw.replace(" ", "T") + "Z");
+      } else {
+        dateObj = new Date(raw);
+      }
+      if (isNaN(dateObj.getTime())) return raw;
+      return dateObj.toLocaleString("en-IN", {
+        timeZone: "Asia/Kolkata",
+        day: "2-digit",
+        month: "short",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit",
+        hour12: true
+      }) + " IST";
+    } catch (e) {
+      return raw;
     }
   }
 
