@@ -183,8 +183,8 @@ def load_config(config_path: str = "config.yaml", env_file: str = ".env") -> App
         ),
         web=WebConfig(
             enabled=bool(web_raw.get("enabled", True)),
-            host=os.getenv("WEB_HOST", web_raw.get("host", "127.0.0.1")),
-            port=int(os.getenv("WEB_PORT", web_raw.get("port", 8080))),
+            host=os.getenv("HOST", os.getenv("WEB_HOST", web_raw.get("host", "127.0.0.1"))),
+            port=int(os.getenv("PORT", os.getenv("WEB_PORT", web_raw.get("port", 8080)))),
         ),
         storage=StorageConfig(
             db_path=os.getenv("DB_PATH", storage_raw.get("db_path", "data/notifyme.db")),
