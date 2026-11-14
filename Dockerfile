@@ -3,9 +3,8 @@ FROM python:3.11-slim
 # Prevent Python from writing .pyc files and enable unbuffered logging
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PORT=7860 \
-    WEB_PORT=7860 \
-    WEB_HOST=0.0.0.0
+    WEB_HOST=0.0.0.0 \
+    WEB_PORT=8080
 
 WORKDIR /app
 
@@ -21,22 +20,21 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir --upgrade pip && \
     pip install --no-cache-dir -r requirements.txt
 
-# Create non-root user (Hugging Face Spaces runs as UID 1000)
-RUN useradd -m -u 1000 user
-USER user
-ENV HOME=/home/user \
-    PATH=/home/user/.local/bin:$PATH
-
-WORKDIR $HOME/app
+# Create dedicated non-root application user
+RUN groupadd -g 10001 appuser && \
+    useradd -u 10001 -g appuser -s /bin/sh -m appuser
 
 # Copy application source code with proper ownership
-COPY --chown=user:user . $HOME/app
+COPY --chown=appuser:appuser . /app
 
-# Ensure data directory exists with write permissions
-RUN mkdir -p $HOME/app/data
+# Ensure data directory exists with write permissions for appuser
+RUN mkdir -p /app/data && chown -R appuser:appuser /app/data
 
-# Hugging Face Spaces exposes port 7860
-EXPOSE 7860
+# Switch to non-root user
+USER appuser
+
+# Expose web dashboard port
+EXPOSE 8080
 
 # Run entry point
 CMD ["python", "main.py"]

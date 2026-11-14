@@ -13,3 +13,5 @@ data/*.db
 data/*.sqlite
 data/*.json
 .env
+.env*
+config.yaml

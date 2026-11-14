@@ -201,10 +201,12 @@ class MonitorEngine:
                     media_urls=tweet.media,
                 )
                 notified_count += 1
+                self.storage.update_last_seen_id(tweet.id)
                 # Small pause to be gentle with Telegram API rate limits
                 await asyncio.sleep(0.5)
-
-            self.storage.update_last_seen_id(tweet.id)
+            else:
+                self.logger.warning("Delivery to Telegram failed for tweet %s; will retry next cycle.", tweet.id)
+                break
 
         self.storage.record_poll("success", tweets_found=len(tweets), tweets_notified=notified_count)
         self.last_successful_poll = time.time()
@@ -328,8 +330,8 @@ class MonitorEngine:
                         "session_expired",
                         "X session re-authenticated successfully.",
                     )
-                    self.consecutive_failures = 0
-                    self.backoff.record_success()
+                self.consecutive_failures = 0
+                self.backoff.record_success()
 
                 # Normal sleep with jitter
                 delay = self.config.poll.interval_seconds + random.uniform(
