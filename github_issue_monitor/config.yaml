@@ -1,0 +1,41 @@
+# GitHub Issue Monitor Configuration
+
+repos:
+  - "open-telemetry/opentelemetry-collector-contrib"
+
+interval_minutes: 15
+max_age_hours: 24
+max_alerts_per_cycle: 10
+
+ignore_users:
+  - "dependabot[bot]"
+  - "renovate[bot]"
+  - "codecov[bot]"
+  - "github-actions[bot]"
+
+labels:
+  bug:
+    - "bug"
+    - "defect"
+    - "kind/bug"
+    - "type/bug"
+  enhancement:
+    - "enhancement"
+    - "feature"
+    - "kind/enhancement"
+    - "type/feature"
+  help_wanted:
+    - "help wanted"
+    - "good first issue"
+    - "good-first-issue"
+    - "help-wanted"
+
+keywords:
+  crash: "BUG"
+  panic: "BUG"
+  deadlock: "BUG"
+  segfault: "BUG"
+  proposal: "ENHANCEMENT"
+  "feature request": "ENHANCEMENT"
+
+db_path: "github_issue_monitor/data/issues.db"

@@ -86,17 +86,16 @@ class TelegramIssueNotifier:
         if self._owns_session and self._session and getattr(self._session, "closed", False) is not True:
             await self._session.close()
 
-    async def send_issue(self, issue: IssueData, reply: str) -> bool:
-        """Send formatted issue alert to configured chat."""
+    async def send_message(self, text: str) -> bool:
+        """Send raw HTML message to configured chat."""
         if not self.bot_token or not self.chat_id:
             logger.warning("Telegram bot_token or chat_id not configured; skipping notification.")
             return False
 
-        message = format_telegram_issue_message(issue, reply)
         url = f"https://api.telegram.org/bot{self.bot_token}/sendMessage"
         payload = {
             "chat_id": self.chat_id,
-            "text": message,
+            "text": text,
             "parse_mode": "HTML",
             "disable_web_page_preview": True,
         }
@@ -108,11 +107,6 @@ class TelegramIssueNotifier:
             try:
                 async with session.post(url, json=payload) as resp:
                     if resp.status == 200:
-                        logger.info(
-                            "Delivered GitHub issue alert for %s #%d to Telegram",
-                            issue.repo,
-                            issue.number,
-                        )
                         return True
 
                     if resp.status == 429:
@@ -131,7 +125,6 @@ class TelegramIssueNotifier:
                         await asyncio.sleep(retry_after)
                         continue
 
-                    # Other error
                     err_body = await resp.text()
                     logger.error(
                         "Telegram sendMessage failed with HTTP %d for bot [%s]: %s",
@@ -145,10 +138,15 @@ class TelegramIssueNotifier:
                 raise
             except Exception as exc:
                 logger.error(
-                    "Network error sending Telegram alert with bot [%s]: %s",
+                    "Network error sending Telegram message with bot [%s]: %s",
                     masked,
                     exc,
                 )
                 return False
 
         return False
+
+    async def send_issue(self, issue: IssueData, reply: str) -> bool:
+        """Send formatted issue alert to configured chat."""
+        message = format_telegram_issue_message(issue, reply)
+        return await self.send_message(message)
