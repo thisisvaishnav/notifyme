@@ -3,7 +3,7 @@
 import pytest
 import time
 from unittest.mock import AsyncMock, patch, MagicMock
-from notifier import TelegramNotifier
+from notifier import TelegramNotifier, format_tweet_timestamp
 from filters import TweetData
 from config import TelegramConfig, AlertConfig
 
@@ -75,6 +75,86 @@ def test_telegram_character_limit_truncation(notifier: TelegramNotifier):
     formatted = notifier.format_tweet_message(tweet)
     assert len(formatted) <= 4096
     assert "..." in formatted
+
+
+def test_format_posts_digest_grouped_by_user(notifier: TelegramNotifier):
+    t1 = TweetData(
+        id=101,
+        text="First launch test completed successfully",
+        author_handle="elonmusk",
+        is_reply=False,
+        is_retweet=False,
+        is_quote=False,
+        created_at="Sun Oct 25 01:05:00 +0000 2026",
+    )
+    t2 = TweetData(
+        id=102,
+        text="Second test coming up tomorrow!",
+        author_handle="elonmusk",
+        is_reply=False,
+        is_retweet=False,
+        is_quote=False,
+        created_at="Sun Oct 25 01:08:00 +0000 2026",
+    )
+    t3 = TweetData(
+        id=201,
+        text="Excited about the progress of AI models <tag>",
+        author_handle="sama",
+        is_reply=False,
+        is_retweet=False,
+        is_quote=False,
+        created_at="Sun Oct 25 01:07:00 +0000 2026",
+    )
+
+    messages = notifier.format_posts_digest([t1, t2, t3], window_label="10m")
+    assert len(messages) == 1
+    msg = messages[0]
+
+    # Verify header
+    assert "🔔 <b>New Posts Summary (10m)</b>" in msg
+
+    # Verify grouped user headers
+    assert "👤 <b><a href=\"https://x.com/elonmusk\">@elonmusk</a></b> (2 posts):" in msg
+    assert "👤 <b><a href=\"https://x.com/sama\">@sama</a></b> (1 post):" in msg
+
+    # Verify numbered items and links
+    assert '1. "First launch test completed successfully"' in msg
+    assert "x.com/elonmusk/status/101" in msg
+    assert "01:05 UTC" in msg
+
+    assert '2. "Second test coming up tomorrow!"' in msg
+    assert "x.com/elonmusk/status/102" in msg
+    assert "01:08 UTC" in msg
+
+    # Verify HTML escaping
+    assert "&lt;tag&gt;" in msg
+    assert "<tag>" not in msg
+    assert "x.com/sama/status/201" in msg
+
+
+def test_format_posts_digest_empty(notifier: TelegramNotifier):
+    assert notifier.format_posts_digest([]) == []
+
+
+@pytest.mark.asyncio
+async def test_send_posts_digest(notifier: TelegramNotifier):
+    notifier._send_raw_message = AsyncMock(return_value=True)
+
+    t = TweetData(
+        id=555,
+        text="Sample post",
+        author_handle="someone",
+        is_reply=False,
+        is_retweet=False,
+        is_quote=False,
+        created_at="now",
+    )
+
+    sent = await notifier.send_posts_digest([t])
+    assert sent is True
+    assert notifier._send_raw_message.call_count == 1
+    args, kwargs = notifier._send_raw_message.call_args
+    assert kwargs.get("disable_web_page_preview") is True
 
 
 def test_alert_cooldown_logic(notifier: TelegramNotifier):

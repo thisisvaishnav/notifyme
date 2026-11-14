@@ -175,6 +175,7 @@ class MonitorEngine:
         new_candidates.sort(key=lambda t: t.id)
 
         notified_count = 0
+        tweets_to_notify: list[TweetData] = []
         for tweet in new_candidates:
             # Check deduplication in database
             if self.storage.is_tweet_notified(tweet.id):
@@ -189,24 +190,30 @@ class MonitorEngine:
                 self.storage.update_last_seen_id(tweet.id)
                 continue
 
-            # Deliver to Telegram
-            self.logger.info("Delivering new post %s by @%s to Telegram...", tweet.id, tweet.author_handle)
-            sent = await self.notifier.send_tweet_notification(tweet)
+            tweets_to_notify.append(tweet)
+
+        if tweets_to_notify:
+            window_mins = max(1, self.config.poll.interval_seconds // 60)
+            window_label = f"{window_mins}m"
+            self.logger.info(
+                "Delivering %d new post(s) to Telegram in %s summary digest...",
+                len(tweets_to_notify),
+                window_label,
+            )
+            sent = await self.notifier.send_posts_digest(tweets_to_notify, window_label=window_label)
             if sent:
-                self.storage.mark_tweet_notified(
-                    tweet_id=tweet.id,
-                    author_handle=tweet.author_handle,
-                    text=tweet.text,
-                    created_at=tweet.created_at,
-                    media_urls=tweet.media,
-                )
-                notified_count += 1
-                self.storage.update_last_seen_id(tweet.id)
-                # Small pause to be gentle with Telegram API rate limits
-                await asyncio.sleep(0.5)
+                for tweet in tweets_to_notify:
+                    self.storage.mark_tweet_notified(
+                        tweet_id=tweet.id,
+                        author_handle=tweet.author_handle,
+                        text=tweet.text,
+                        created_at=tweet.created_at,
+                        media_urls=tweet.media,
+                    )
+                    notified_count += 1
+                    self.storage.update_last_seen_id(tweet.id)
             else:
-                self.logger.warning("Delivery to Telegram failed for tweet %s; will retry next cycle.", tweet.id)
-                break
+                self.logger.warning("Delivery to Telegram failed for posts summary; will retry next cycle.")
 
         self.storage.record_poll("success", tweets_found=len(tweets), tweets_notified=notified_count)
         self.last_successful_poll = time.time()

@@ -3,6 +3,7 @@
 from __future__ import annotations
 import html
 import time
+from datetime import datetime, timezone
 import logging
 import asyncio
 import aiohttp
@@ -13,8 +14,30 @@ from filters import TweetData
 logger = logging.getLogger("notifyme.notifier")
 
 
+def format_tweet_timestamp(created_at_str: str) -> str:
+    """Format tweet created_at string into HH:MM UTC if possible, or return original if short."""
+    if not created_at_str:
+        return ""
+    for fmt in (
+        "%a %b %d %H:%M:%S %z %Y",
+        "%Y-%m-%dT%H:%M:%S.%fZ",
+        "%Y-%m-%dT%H:%M:%SZ",
+        "%Y-%m-%d %H:%M:%S",
+    ):
+        try:
+            dt = datetime.strptime(created_at_str, fmt)
+            if dt.tzinfo is not None:
+                dt = dt.astimezone(timezone.utc)
+            return dt.strftime("%H:%M UTC")
+        except (ValueError, TypeError):
+            continue
+    if len(created_at_str) <= 15:
+        return created_at_str
+    return ""
+
+
 class TelegramNotifier:
-    """Sends notifications and health alerts to Telegram using the Bot API."""
+    """Sends notifications, digest summaries, and health alerts to Telegram using the Bot API."""
 
     def __init__(self, telegram_config: TelegramConfig, alert_config: AlertConfig):
         self.tg_config = telegram_config
@@ -60,14 +83,111 @@ class TelegramNotifier:
         escaped_text = html.escape(raw_text)
         return f"{header}{escaped_text}{footer}"
 
+    def format_posts_digest(self, tweets: list[TweetData], window_label: str = "10m") -> list[str]:
+        """Format a batch of TweetData into grouped card-style Telegram HTML messages (Option 3).
+
+        Args:
+            tweets: List of TweetData objects to format.
+            window_label: Cadence label for header (e.g. '10m').
+
+        Returns:
+            List of Telegram-compatible HTML formatted message chunks (<= 4096 chars each).
+        """
+        if not tweets:
+            return []
+
+        # Group tweets by author_handle preserving order of appearance
+        grouped: dict[str, list[TweetData]] = {}
+        for t in tweets:
+            grouped.setdefault(t.author_handle, []).append(t)
+
+        header = f"🔔 <b>New Posts Summary ({window_label})</b>\n\n"
+        messages: list[str] = []
+        current_content = header
+
+        for handle, user_tweets in grouped.items():
+            escaped_handle = html.escape(handle)
+            count = len(user_tweets)
+            post_label = "post" if count == 1 else "posts"
+            user_block = f"👤 <b><a href=\"https://x.com/{escaped_handle}\">@{escaped_handle}</a></b> ({count} {post_label}):\n"
+
+            item_lines = []
+            for idx, tweet in enumerate(user_tweets, start=1):
+                raw_text = " ".join(tweet.text.split()) if tweet.text else ""
+                if len(raw_text) > 200:
+                    raw_text = raw_text[:197] + "..."
+
+                if raw_text:
+                    escaped_text = f'"{html.escape(raw_text)}"'
+                elif tweet.media:
+                    escaped_text = "<i>(Media only)</i>"
+                else:
+                    escaped_text = "<i>(No text)</i>"
+
+                display_url = tweet.url.replace("https://", "").replace("http://", "")
+                escaped_display_url = html.escape(display_url)
+                escaped_url = html.escape(tweet.url, quote=True)
+
+                time_str = format_tweet_timestamp(tweet.created_at)
+                time_part = f" • <code>{html.escape(time_str)}</code>" if time_str else ""
+
+                media_part = ""
+                if tweet.media:
+                    m_len = len(tweet.media)
+                    m_label = "item" if m_len == 1 else "items"
+                    media_part = f"\n   📷 <i>Attached Media: {m_len} {m_label}</i>"
+
+                item_lines.append(
+                    f'{idx}. {escaped_text}\n'
+                    f'   🔗 <a href="{escaped_url}">{escaped_display_url}</a>{time_part}{media_part}'
+                )
+
+            user_block += "\n".join(item_lines) + "\n\n"
+
+            # Check if adding this user_block would exceed limit (Telegram max is 4096)
+            if len(current_content) + len(user_block) > 3800:
+                if current_content.strip() != header.strip():
+                    messages.append(current_content.strip())
+                    current_content = header + user_block
+                else:
+                    messages.append((current_content + user_block).strip())
+                    current_content = header
+            else:
+                current_content += user_block
+
+        if current_content.strip() and current_content.strip() != header.strip():
+            messages.append(current_content.strip())
+
+        return messages
+
     async def send_tweet_notification(self, tweet: TweetData) -> bool:
-        """Deliver a formatted tweet to the target Telegram chat."""
+        """Deliver a formatted single tweet to the target Telegram chat."""
         if not self.tg_config.bot_token or not self.tg_config.chat_id:
             logger.warning("Telegram bot_token or chat_id is not configured; skipping notification.")
             return False
 
         message = self.format_tweet_message(tweet)
         return await self._send_raw_message(self.tg_config.chat_id, message)
+
+    async def send_posts_digest(self, tweets: list[TweetData], window_label: str = "10m") -> bool:
+        """Deliver a batch of new posts grouped by author in a summary digest to Telegram."""
+        if not tweets:
+            return True
+
+        if not self.tg_config.bot_token or not self.tg_config.chat_id:
+            logger.warning("Telegram bot_token or chat_id is not configured; skipping summary.")
+            return False
+
+        messages = self.format_posts_digest(tweets, window_label=window_label)
+        all_sent = True
+        for msg in messages:
+            sent = await self._send_raw_message(self.tg_config.chat_id, msg, disable_web_page_preview=True)
+            if not sent:
+                all_sent = False
+                break
+            await asyncio.sleep(0.5)
+
+        return all_sent
 
     async def send_message(self, message: str, chat_id: str | None = None) -> bool:
         """Send a general HTML formatted message to the configured Telegram chat."""
@@ -128,14 +248,14 @@ class TelegramNotifier:
             self._active_alerts.discard(alert_type)
         return success
 
-    async def _send_raw_message(self, chat_id: str, html_text: str) -> bool:
+    async def _send_raw_message(self, chat_id: str, html_text: str, disable_web_page_preview: bool = False) -> bool:
         """Execute the HTTP POST request to Telegram API with retry on 429."""
         session = await self._get_session()
         payload = {
             "chat_id": chat_id,
             "text": html_text,
             "parse_mode": "HTML",
-            "disable_web_page_preview": False,
+            "disable_web_page_preview": disable_web_page_preview,
         }
 
         max_retries = 2

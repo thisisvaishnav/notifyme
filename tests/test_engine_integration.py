@@ -99,11 +99,12 @@ async def test_engine_chronological_ordering(test_setup):
 
     delivered_ids = []
 
-    async def mock_send_tweet(tweet):
-        delivered_ids.append(tweet.id)
+    async def mock_send_posts(tweets, **kwargs):
+        for t in tweets:
+            delivered_ids.append(t.id)
         return True
 
-    notifier.send_tweet_notification = mock_send_tweet
+    notifier.send_posts_digest = mock_send_posts
 
     fetcher.next_batch = [t1005, t1002, t1004]
     notified = await engine.poll_once()

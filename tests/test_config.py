@@ -81,5 +81,5 @@ def test_load_config_default_poll_interval(tmp_path):
     empty_env.write_text("", encoding="utf-8")
 
     cfg = load_config(config_path=str(empty_config), env_file=str(empty_env))
-    # Verified default is 180 seconds (3 minutes)
-    assert cfg.poll.interval_seconds == 180
+    # Verified default is 600 seconds (10 minutes)
+    assert cfg.poll.interval_seconds == 600

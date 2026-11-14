@@ -15,8 +15,8 @@ x_account:
   cookies_path: "data/cookies.json"
 
 poll:
-  # Poll interval in seconds (default: 180s = 3 minutes)
-  interval_seconds: 180
+  # Poll interval in seconds (default: 600s = 10 minutes)
+  interval_seconds: 600
   # Random jitter added to sleep time to appear more natural (0 to 10s)
   jitter_max_seconds: 10
 
