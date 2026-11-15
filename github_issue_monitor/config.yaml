@@ -6,6 +6,7 @@ repos:
   - "jenkins-infra/jenkins.io"
   - "meshery/meshery"
   - "microcks/microcks"
+  - "open-telemetry/opentelemetry-go-compile-instrumentation"
 
 interval_minutes: 15
 max_age_hours: 24
