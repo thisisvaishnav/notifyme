@@ -2,6 +2,7 @@
 
 repos:
   - "open-telemetry/opentelemetry-collector-contrib"
+  - "argoproj/argo-cd"
 
 interval_minutes: 15
 max_age_hours: 24
