@@ -5,6 +5,7 @@ repos:
   - "argoproj/argo-cd"
   - "jenkins-infra/jenkins.io"
   - "meshery/meshery"
+  - "microcks/microcks"
 
 interval_minutes: 15
 max_age_hours: 24
